@@ -1,0 +1,9 @@
+{
+    "zksrpc": "https://mainnet.era.zksync.io",
+    "ethrpc": "https://eth.llamarpc.com",
+    "bscrpc": "https://rpc.ankr.com/bsc",
+    "walletPath": "/Users/admin/Desktop/testwallet/wallet.csv",
+    "maxGasPrice": 30,
+    "minInterval": 10,
+    "maxInterval": 120
+}

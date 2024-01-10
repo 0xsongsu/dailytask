@@ -1,0 +1,21 @@
+{
+  "name": "robots",
+  "version": "1.0.0",
+  "description": "",
+  "main": "claimRaffle.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
+    "ethers": "^5.7.2",
+    "fake-useragent": "^1.0.1",
+    "fs": "^0.0.1-security",
+    "https-proxy-agent": "^7.0.2",
+    "node-fetch": "^3.3.2",
+    "save": "^2.9.0"
+  }
+}

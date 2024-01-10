@@ -1,0 +1,28 @@
+[
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "day",
+                "type": "uint256"
+            }
+        ],
+        "name": "GetTicket",
+        "type": "event"
+    },
+    {
+        "inputs": [],
+        "name": "getTicket",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]

@@ -1,0 +1,91 @@
+[
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_logic",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "admin_",
+                "type": "address"
+            },
+            {
+                "internalType": "bytes",
+                "name": "_data",
+                "type": "bytes"
+            }
+        ],
+        "stateMutability": "payable",
+        "type": "constructor"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "target",
+                "type": "address"
+            }
+        ],
+        "name": "AddressEmptyCode",
+        "type": "error"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "admin",
+                "type": "address"
+            }
+        ],
+        "name": "ERC1967InvalidAdmin",
+        "type": "error"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "implementation",
+                "type": "address"
+            }
+        ],
+        "name": "ERC1967InvalidImplementation",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "FailedInnerCall",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "ProxyDeniedAdminAccess",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "ProxyNonPayableFunction",
+        "type": "error"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "fallback"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "receive"
+    },
+    {
+      "constant": false,
+      "inputs": 
+      [
+        {"name":"param_address_1",
+        "type":"address"}
+        ],
+      "name": "safeMint",
+      "outputs": [],
+      "payable": false,
+      "type": "function"
+    }
+]
