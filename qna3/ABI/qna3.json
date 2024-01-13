@@ -1,0 +1,38 @@
+[
+    {
+        "constant": false,
+        "inputs": [
+            {
+                "name": "param_uint256_1",
+                "type": "uint256"
+            }
+        ],
+        "name": "checkIn",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "constant": false,
+        "inputs": [
+            {
+                "name": "activityIndex",
+                "type": "uint256"
+            },
+            {
+                "name": "id",
+                "type": "uint256"
+            },
+            {
+                "name": "credit",
+                "type": "uint32"
+            }
+        ],
+        "name": "vote",
+        "outputs": [],
+        "payable": false,
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]

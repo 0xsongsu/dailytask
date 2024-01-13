@@ -6,6 +6,9 @@ const readlineSync = require('readline-sync');
 const axios = require('axios');
 const config = require('../config/runner.json');
 const fakeUa = require('fake-useragent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
+const agent = new HttpsProxyAgent(config.proxy);
 
 function getKeyFromUser() {
     const key = readlineSync.question('请输入你的密码: ', {
@@ -59,7 +62,7 @@ async function checkIn(privateKey) {
 
     const nonceResponse = await axios.post('https://reiki.web3go.xyz/api/account/web3/web3_nonce', {
         address: address
-    }, axiosConfig);
+    }, axiosConfig, agent);
     const nonce = nonceResponse.data.nonce;
 
     const msg = `reiki.web3go.xyz wants you to sign in with your Ethereum account:\n${address}\n\n${nonce}\n\nURI: https://reiki.web3go.xyz\nVersion: 1\nChain ID: 56\nNonce: ${nonce}\nIssued At: ${new Date().toISOString()}`;
@@ -71,13 +74,13 @@ async function checkIn(privateKey) {
         nonce: nonce,
         challenge: JSON.stringify({ msg: msg }),
         signature: signature
-    }, axiosConfig);
+    }, axiosConfig, agent);
     const token = challengeResponse.data.extra.token;
 
     const date = new Date().toISOString().split('T')[0];
     const checkInResponse = await axios.put(`https://reiki.web3go.xyz/api/checkin?day=${date}`, {}, {
         headers: { ...axiosConfig.headers, 'Authorization': `Bearer ${token}` }
-    });
+    }, agent);
 
     if (checkInResponse.status === 200) {
         console.log(`${address} - 签到成功🏅`);

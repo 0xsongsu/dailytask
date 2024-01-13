@@ -1,7 +1,12 @@
-const fetch = require('node-fetch');
+const axios = require('axios');
 const fs = require('fs');
 const csv = require('csv-parser');
 const config = require('../config/runner.json');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const fakeUa = require('fake-useragent');
+
+const userAgent = fakeUa();
+const agent = new HttpsProxyAgent(config.proxy);
 
 function sleep(minutes) {
     return new Promise(resolve => setTimeout(resolve, minutes * 60000));
@@ -25,24 +30,19 @@ async function claimRaffleRewards(address) {
       'sec-fetch-dest': 'empty',
       'sec-fetch-mode': 'cors',
       'sec-fetch-site': 'same-origin',
-      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+      'user-agent': userAgent,
     };
 
     const params = new URLSearchParams({
         'address': address
     });
 
-    try {
-        const response = await fetch(`https://robots.farm/api/raffle/v3/claim?${params}`, {
-            method: 'GET',
-            headers: headers
-        });
-        const data = await response.json();
-        return data["1"];
-    } catch (error) {
-        console.error('领取出错', error);
-        throw error;
+   const response = await axios.get(`https://robots.farm/api/raffle/v3/claim?${params}`,{ 
+    headers: headers,
+    httpsAgent: agent
     }
+);
+    return response.data.message;
 }
 
 async function processAddresses(filePath) {
@@ -64,7 +64,7 @@ async function processAddresses(filePath) {
     });
 }
 
-async function startClaimingRewards() {
+async function main() {
     try {
         const addresses = await processAddresses(config.walletPath);
         console.log('开始领取奖励');
@@ -79,7 +79,7 @@ async function startClaimingRewards() {
             }
 
             const pauseTime = randomPause();
-            console.log(`暂停 ${pauseTime} 分钟`);
+            console.log(`暂停 ${pauseTime} 秒`);
             await sleep(pauseTime);
         }
         console.log('所有地址的奖励已经领取完毕。');
@@ -88,4 +88,4 @@ async function startClaimingRewards() {
     }
 }
 
-startClaimingRewards();
+main();
