@@ -3,13 +3,13 @@ const fs = require('fs');
 const csv = require('csv-parser');
 const config = require('../config/runner.json');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-const fakeUa = require('fake-useragent');
-
-const userAgent = fakeUa();
 const agent = new HttpsProxyAgent(config.proxy);
+const fakeUa = require('fake-useragent');
+const userAgent = fakeUa();
 
-function sleep(minutes) {
-    return new Promise(resolve => setTimeout(resolve, minutes * 60000));
+
+function sleep(seconds) {
+    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
 function randomPause() {
@@ -20,29 +20,34 @@ function randomPause() {
 
 async function claimRaffleRewards(address) {
     const headers = {
-      'authority': 'robots.farm',
-      'accept': '*/*',
-      'accept-language': 'zh-CN,zh;q=0.9',
-      'referer': 'https://robots.farm/airdrop/quests',
-      'sec-ch-ua': '"Google Chrome";v="117", "Not;A=Brand";v="8", "Chromium";v="117"',
-      'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"macOS"',
-      'sec-fetch-dest': 'empty',
-      'sec-fetch-mode': 'cors',
-      'sec-fetch-site': 'same-origin',
-      'user-agent': userAgent,
+        'authority': 'robots.farm',
+        'accept-language': 'zh-CN,zh;q=0.9',
+        'referer': 'https://robots.farm/airdrop/quests',
+        'sec-ch-ua': '"Google Chrome";v="117", "Not;A=Brand";v="8", "Chromium";v="117"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': userAgent,
     };
-
-    const params = new URLSearchParams({
-        'address': address
-    });
-
-   const response = await axios.get(`https://robots.farm/api/raffle/v3/claim?${params}`,{ 
-    headers: headers,
-    httpsAgent: agent
+    
+    const url = `https://robots.farm/api/raffle/v3/claim?address=${address}`;
+    
+    try {
+        const response = await axios.get(url, { 
+            headers: headers,
+            httpsAgent: agent,
+        });
+        return response.data.message;
+    } catch (error) {
+        if (error.response && error.response.status === 403) {
+            console.error(`错误，该地址无奖票或已领取过奖励`);
+            return '无奖票或已领取';
+        } else {
+            throw error;
+        }
     }
-);
-    return response.data.message;
 }
 
 async function processAddresses(filePath) {
@@ -71,16 +76,24 @@ async function main() {
 
         for (const address of addresses) {
             console.log(`领取地址: ${address}`);
+            let isClaimed = false; // 标记是否已领取或无奖票
             try {
                 const result = await claimRaffleRewards(address);
-                console.log(`领取成功🏅，地址： ${address}:`, result);
+                if (result !== '无奖票或已领取') {
+                    console.log(`领取成功🏅，地址： ${address}:`, result);
+                } else {
+                    console.log(`地址： ${address} 无奖票或已领取过奖励`);
+                    isClaimed = true; // 已领取或无奖票，设置标记
+                }
             } catch (error) {
                 console.error(`领取失败❌，地址： ${address}:`, error);
             }
 
-            const pauseTime = randomPause();
-            console.log(`暂停 ${pauseTime} 秒`);
-            await sleep(pauseTime);
+            if (!isClaimed) { // 只有在未领取的情况下才暂停
+                const pauseTime = randomPause();
+                console.log(`暂停 ${pauseTime} 秒`);
+                await sleep(pauseTime);
+            }
         }
         console.log('所有地址的奖励已经领取完毕。');
     } catch (error) {
