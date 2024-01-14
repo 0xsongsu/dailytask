@@ -4,18 +4,24 @@ const fs = require('fs');
 const csv = require('csv-parser');
 const readlineSync = require('readline-sync');
 const axios = require('axios');
-const config = require('../config/runner.json');
+const config = require('../../config/runner.json');
 const fakeUa = require('fake-useragent');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const agent = new HttpsProxyAgent(config.proxy);
 
 function getKeyFromUser() {
-    const key = readlineSync.question('请输入你的密码: ', {
-        hideEchoBack: true,
-    });
+    let key;
+    if (process.env.SCRIPT_PASSWORD) {
+        key = process.env.SCRIPT_PASSWORD;
+    } else {
+        key = readlineSync.question('请输入你的密码: ', {
+            hideEchoBack: true,
+        });
+    }
     return crypto.createHash('sha256').update(String(key)).digest('base64').substr(0, 32);
 }
+
 
 function decrypt(text, secretKey) {
     let parts = text.split(':');

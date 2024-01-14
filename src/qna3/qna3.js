@@ -4,7 +4,7 @@ const fs = require('fs');
 const csv = require('csv-parser');
 const readlineSync = require('readline-sync');
 const axios = require('axios');
-const config = require('../config/runner.json');
+const config = require('../../config/runner.json');
 const fakeUa = require('fake-useragent');
 const contractAddress = '0xb342e7d33b806544609370271a8d074313b7bc30';
 const contractABI = require('./ABI/qna3.json');
@@ -27,10 +27,15 @@ const headers = {
 };
 
 function getKeyFromUser() {
-    const key = readlineSync.question('请输入你的密码: ', {
-        hideEchoBack: true, // 密钥不回显
-    });
-    return crypto.createHash('sha256').update(String(key)).digest('base64').substr(0, 32); // 使用SHA-256生成密钥
+    let key;
+    if (process.env.SCRIPT_PASSWORD) {
+        key = process.env.SCRIPT_PASSWORD;
+    } else {
+        key = readlineSync.question('请输入你的密码: ', {
+            hideEchoBack: true,
+        });
+    }
+    return crypto.createHash('sha256').update(String(key)).digest('base64').substr(0, 32);
 }
 
 function decrypt(text, secretKey) {

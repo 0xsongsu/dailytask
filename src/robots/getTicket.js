@@ -3,18 +3,24 @@ const crypto = require('crypto');
 const fs = require('fs');
 const csv = require('csv-parser');
 const readlineSync = require('readline-sync');
-const config = require('../config/runner.json');
-const contractAddress = '0xa4Aff9170C34c0e38Fed74409F5742617d9E80dc';
-const contractABI = require('./ABI/reiki.json');
+const config = require('../../config/runner.json');
+const contractAddress = '0xC91AAacC5adB9763CEB57488CC9ebE52C76A2b05';
+const contractABI = require('./ABI/abi.json');
 
-const provider = new ethers.providers.JsonRpcProvider(config.bscrpc);
+const provider = new ethers.providers.JsonRpcProvider(config.zksrpc);
+const ethereumProvider = new ethers.providers.JsonRpcProvider(config.ethrpc);
 const contractTemplate = new ethers.Contract(contractAddress, contractABI);
 
 function getKeyFromUser() {
-    const key = readlineSync.question('请输入你的密码: ', {
-        hideEchoBack: true, // 密钥不回显
-    });
-    return crypto.createHash('sha256').update(String(key)).digest('base64').substr(0, 32); // 使用SHA-256生成密钥
+    let key;
+    if (process.env.SCRIPT_PASSWORD) {
+        key = process.env.SCRIPT_PASSWORD;
+    } else {
+        key = readlineSync.question('请输入你的密码: ', {
+            hideEchoBack: true,
+        });
+    }
+    return crypto.createHash('sha256').update(String(key)).digest('base64').substr(0, 32);
 }
 
 function decrypt(text, secretKey) {
@@ -27,6 +33,27 @@ function decrypt(text, secretKey) {
     return decrypted.toString();
 }
 
+async function checkGasPrice() {
+    while (true) {
+        console.log('开始获取当前主网GAS');
+        try {
+            const gasPrice = await ethereumProvider.getGasPrice();
+            const formattedGasPrice = ethers.utils.formatUnits(gasPrice, 'gwei');  
+            
+            if (parseFloat(formattedGasPrice) <= parseFloat(config.maxGasPrice)) {
+                console.log(`当前的gas为：${formattedGasPrice} Gwei，小于${config.maxGasPrice} Gwei，程序继续运行`);
+                return gasPrice; 
+            }
+
+            console.log(`当前的gas为：${formattedGasPrice} Gwei，大于${config.maxGasPrice} Gwei，程序暂停5分钟`);
+            await sleep(300); // 暂停5分钟
+        } catch (error) {
+            console.log('获取GAS价格失败，程序暂停1分钟后重新尝试');
+            await sleep(60); // 暂停1分钟
+        }
+    }
+}
+
 function sleep(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
@@ -37,10 +64,10 @@ function randomPause() {
     return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
 }
 
-
 async function main() {
     const secretKey = getKeyFromUser(); // 从用户那里获取密钥
     const wallets = [];
+    await checkGasPrice();
 
     fs.createReadStream(config.walletPath)
     .pipe(csv())
@@ -49,24 +76,17 @@ async function main() {
         wallets.push({ ...row, decryptedPrivateKey });
     })
         .on('end', async () => {
-            console.log('所有地址已读取完毕，开始MINT');
+            console.log('所有地址已读取完毕，开始发送交易');
 
             for (const walletInfo of wallets) {
                 try {
                     const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey, provider);
                     const contract = contractTemplate.connect(wallet);
-                    const gasPrice = await provider.getGasPrice();
-                    const gasLimit = await contract.estimateGas.safeMint(wallet.address);
-
-                    const tx = await contract.safeMint(wallet.address, {
-                        gasLimit: gasLimit,
-                        gasPrice: gasPrice,
-                    });
-
-                    console.log(`钱包地址：${wallet.address}`, `MINT哈希：${tx.hash}`);
+                    const tx = await contract.getTicket();
+                    console.log(`钱包地址：${wallet.address}`, `交易哈希：${tx.hash}`);
 
                     const pauseTime = randomPause();
-                    console.log(`任务完成，线程暂停${pauseTime}分钟`);
+                    console.log(`任务完成，线程暂停${pauseTime}秒`);
                     await sleep(pauseTime);
                 }
                 catch (error) {

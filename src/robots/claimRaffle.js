@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const csv = require('csv-parser');
-const config = require('../config/runner.json');
+const config = require('../../config/runner.json');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const agent = new HttpsProxyAgent(config.proxy);
 const fakeUa = require('fake-useragent');
