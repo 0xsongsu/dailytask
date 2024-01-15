@@ -119,7 +119,7 @@ async function main() {
                     console.error('操作失败:', error);
                 }
             }
-            if (checkIn.statusCode === 200) {
+            if (statusCode === 200) {
                 console.log(`签到成功🏅`);
                 // 暂停一段时间
                 const pauseTime = randomPause();

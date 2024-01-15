@@ -80,7 +80,7 @@ async function main() {
             try {
                 const result = await claimRaffleRewards(address);
                 if (result !== '无奖票或已领取') {
-                    console.log(`领取成功🏅，地址： ${address}:`, result);
+                    console.log(`领取成功🏅`);
                 } else {
                     console.log(`地址： ${address} 无奖票或已领取过奖励`);
                     isClaimed = true; // 已领取或无奖票，设置标记
