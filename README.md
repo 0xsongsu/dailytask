@@ -42,11 +42,11 @@ autoRunner.js ：定时执行程序，不需要系统定时任务，但不能程
 设置定时任务:
 添加一行来设定任务的执行时间和要运行的脚本。例如，要每天下午3点运行您的 Node.js 脚本，您可以添加以下行：
 
-‘’‘
+```
 0 15 * * * /usr/local/bin/node /path/to/your/script.js
 
-’‘’
-
+```
+其中
 /usr/local/bin/node 是 Node.js 的路径（您可以通过在终端运行 which node 来找到它），
 /path/to/your/script.js 是您的 Node.js 脚本的完整路径。
 
