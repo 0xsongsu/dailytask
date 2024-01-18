@@ -9,11 +9,23 @@ const fakeUa = require('fake-useragent');
 const contractAddress = '0xb342e7d33b806544609370271a8d074313b7bc30';
 const contractABI = require('./ABI/qna3.json');
 const { HttpsProxyAgent } = require('https-proxy-agent');
-
-
+const capsolverUrl = 'https://api.capsolver.com/createTask';
+const taskResultUrl = 'https://api.capsolver.com/getTaskResult';
 const provider = new ethers.providers.JsonRpcProvider(config.opbnb);
 const contractTemplate = new ethers.Contract(contractAddress, contractABI);
 const agent = new HttpsProxyAgent(config.proxy);
+
+const createEntity = {
+    'clientKey': config.clientKey,
+    'task': {
+        'type':'ReCaptchaV3EnterpriseTask',
+        'websiteURL':'https://qna3.ai/vote',
+        'websiteKey':'6Lcq80spAAAAADGCu_fvSx3EG46UubsLeaXczBat',
+        'pageAction':'checkin',
+        'proxy': agent,
+    }
+};
+
 const userAgent = fakeUa();
 const headers = {
     'authority': 'api.qna3.ai',
