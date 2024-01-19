@@ -6,6 +6,7 @@ const readlineSync = require('readline-sync');
 const config = require('../../config/runner.json');
 const contractAddress = '0xa4Aff9170C34c0e38Fed74409F5742617d9E80dc';
 const contractABI = require('./ABI/reiki.json');
+const { sleep, randomPause} = require('../../utils/utils.js');
 
 const provider = new ethers.providers.JsonRpcProvider(config.bscrpc);
 const contractTemplate = new ethers.Contract(contractAddress, contractABI);
@@ -31,17 +32,6 @@ function decrypt(text, secretKey) {
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
 }
-
-function sleep(seconds) {
-    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
-
-function randomPause() {
-    const minSeconds = Math.ceil(config.minInterval);
-    const maxSeconds = Math.floor(config.maxInterval);
-    return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
-}
-
 
 async function main() {
     const secretKey = getKeyFromUser(); // 从用户那里获取密钥

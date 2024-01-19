@@ -6,6 +6,7 @@ const readlineSync = require('readline-sync');
 const config = require('../../config/runner.json');
 const contractAddress = '0xC91AAacC5adB9763CEB57488CC9ebE52C76A2b05';
 const contractABI = require('./ABI/abi.json');
+const { sleep, randomPause} = require('../../utils/utils.js');
 
 const provider = new ethers.providers.JsonRpcProvider(config.zksrpc);
 const ethereumProvider = new ethers.providers.JsonRpcProvider(config.ethrpc);
@@ -54,16 +55,6 @@ async function checkGasPrice() {
     }
 }
 
-function sleep(seconds) {
-    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
-
-function randomPause() {
-    const minSeconds = Math.ceil(config.minInterval);
-    const maxSeconds = Math.floor(config.maxInterval);
-    return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
-}
-
 async function main() {
     const secretKey = getKeyFromUser(); // 从用户那里获取密钥
     const wallets = [];
@@ -80,6 +71,7 @@ async function main() {
 
             for (const walletInfo of wallets) {
                 try {
+                    await checkGasPrice();
                     const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey, provider);
                     const contract = contractTemplate.connect(wallet);
                     const tx = await contract.getTicket();

@@ -8,6 +8,7 @@ const fakeUa = require('fake-useragent');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const ethers = require('ethers');
 const { url } = require('inspector');
+const { sleep, randomPause} = require('../../utils/utils.js');
 
 const agent = new HttpsProxyAgent(config.proxy);
 const userAgent = fakeUa();
@@ -41,16 +42,6 @@ function decrypt(text, secretKey) {
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
-}
-
-function sleep(seconds) {
-    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
-
-function randomPause() {
-    const minSeconds = Math.ceil(config.minInterval);
-    const maxSeconds = Math.floor(config.maxInterval);
-    return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
 }
 
 function formHexData(string) {

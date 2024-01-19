@@ -7,6 +7,7 @@ const axios = require('axios');
 const config = require('../../config/runner.json');
 const fakeUa = require('fake-useragent');
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { sleep, randomPause} = require('../../utils/utils.js');
 
 const agent = new HttpsProxyAgent(config.proxy);
 
@@ -31,16 +32,6 @@ function decrypt(text, secretKey) {
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();
-}
-
-function sleep(seconds) {
-    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
-
-function randomPause() {
-    const minSeconds = Math.ceil(config.minInterval);
-    const maxSeconds = Math.floor(config.maxInterval);
-    return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
 }
 
 async function checkIn(privateKey) {
@@ -111,7 +102,7 @@ async function main() {
                 await checkIn(walletInfo.decryptedPrivateKey);
                 const pauseTime = randomPause();
                 console.log(`暂停 ${pauseTime} 秒`);
-                await new Promise(resolve => setTimeout(resolve, pauseTime * 1000));
+                await sleep(pauseTime);
             }
         });
 }

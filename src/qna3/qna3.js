@@ -57,7 +57,7 @@ const headers = {
 async function recaptcha(pageAction) {
     const {taskId} = await createTask(websiteUrl, websiteKey, 'RecaptchaV3TaskProxyless', pageAction);
     let result = await getTaskResult(taskId);
-    // 如果result为空，等待0.3分钟后再次请求
+    // 如果result为空，等待6秒后再次请求
     if (!result) {
         await sleep(0.1);
         result = await getTaskResult(taskId);
@@ -137,9 +137,9 @@ async function main() {
                 console.log(`开始为 ${wallet.address}签到`);
                 console.log(`请求google验证中......`)
                 const loginStatus = await login(wallet);
-                console.log(loginStatus)
+                console.log(`登录成功，开始签到`);
                 const checkInStatus = await checkIn(wallet);
-                console.log(checkInStatus)
+                console.log("签到成功🏅")
                 // 暂停一段时间
                 const pauseTime = randomPause();
                 console.log(`任务完成，线程暂停${pauseTime}秒`);

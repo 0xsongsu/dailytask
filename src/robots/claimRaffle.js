@@ -6,17 +6,7 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const agent = new HttpsProxyAgent(config.proxy);
 const fakeUa = require('fake-useragent');
 const userAgent = fakeUa();
-
-
-function sleep(seconds) {
-    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
-
-function randomPause() {
-    const min = Math.ceil(config.minInterval);
-    const max = Math.floor(config.maxInterval);
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+const { sleep, randomPause} = require('../../utils/utils.js');
 
 async function claimRaffleRewards(address) {
     const headers = {

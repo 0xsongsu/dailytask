@@ -26,6 +26,8 @@
 - maxGasPrice：限制主网gas，高于设定值程序不会运行，进入持续检查
 - minInterval：最小暂停秒数
 - maxInterval：最大暂停秒数
+- yescaptcha：在 utils/yescaptcha/yescaptcha.js中，将你购买的yescaptcha ApiKEY填入
+		购买链接：https://yescaptcha.com/i/u37t5k
 
 #### 5、运行程序
 

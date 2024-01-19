@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require('../config/runner.json');
 
 const  sleep = (minutes) => {
     const milliseconds = minutes * 60 * 1000;
