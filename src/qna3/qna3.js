@@ -1,42 +1,19 @@
 const ethers = require('ethers');
 const crypto = require('crypto');
 const fs = require('fs');
+const  { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
 const csv = require('csv-parser');
-const readlineSync = require('readline-sync');
-const axios = require('axios');
-const config = require('../../config/runner.json');
 const fakeUa = require('fake-useragent');
+const readlineSync = require('readline-sync');
+const config = require('../../config/runner.json');
 const contractAddress = '0xb342e7d33b806544609370271a8d074313b7bc30';
 const contractABI = require('./ABI/qna3.json');
-const { HttpsProxyAgent } = require('https-proxy-agent');
-const capsolverUrl = 'https://api.capsolver.com/createTask';
-const taskResultUrl = 'https://api.capsolver.com/getTaskResult';
-const provider = new ethers.providers.JsonRpcProvider(config.opbnb);
-const contractTemplate = new ethers.Contract(contractAddress, contractABI);
-const agent = new HttpsProxyAgent(config.proxy);
-
-const createEntity = {
-    'clientKey': config.clientKey,
-    'task': {
-        'type':'ReCaptchaV3EnterpriseTask',
-        'websiteURL':'https://qna3.ai/vote',
-        'websiteKey':'6Lcq80spAAAAADGCu_fvSx3EG46UubsLeaXczBat',
-        'pageAction':'checkin',
-        'proxy': agent,
-    }
-};
-
+const axios = require('axios');
 const userAgent = fakeUa();
-const headers = {
-    'authority': 'api.qna3.ai',
-    'accept': 'application/json, text/plain, */*',
-    'accept-language': 'en-US,en;q=0.9,ru-RU;q=0.8,ru;q=0.7',
-    'content-type': 'application/json',
-    'origin': 'https://qna3.ai',
-    'sec-ch-ua-platform': '"Windows"',
-    'user-agent': userAgent,
-    'x-lang': 'english',
-};
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const { sleep, randomPause, sendRequest} = require('../../utils/utils.js');
+
+const contractTemplate = new ethers.Contract(contractAddress, contractABI);
 
 function getKeyFromUser() {
     let key;
@@ -60,55 +37,89 @@ function decrypt(text, secretKey) {
     return decrypted.toString();
 }
 
-function sleep(seconds) {
-    return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-}
+const contract = new ethers.Contract(contractAddress, contractABI);
+const provider = new ethers.providers.JsonRpcProvider(config.opbnb);
+const agent = new HttpsProxyAgent(config.proxy);
+const websiteKey = '6Lcq80spAAAAADGCu_fvSx3EG46UubsLeaXczBat';
+const websiteUrl = 'https://qna3.ai/vote';
+const headers = {
+    'authority': 'api.qna3.ai',
+    'accept': 'application/json, text/plain, */*',
+    'accept-language': 'en-US,en;q=0.9,ru-RU;q=0.8,ru;q=0.7',
+    'content-type': 'application/json',
+    'origin': 'https://qna3.ai',
+    'sec-ch-ua-platform': '"Windows"',
+    'user-agent': userAgent,
+    'x-lang': 'english',
+};
 
-function randomPause() {
-    const minSeconds = Math.ceil(config.minInterval);
-    const maxSeconds = Math.floor(config.maxInterval);
-    return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
-}
 
+async function recaptcha(pageAction) {
+    const {taskId} = await createTask(websiteUrl, websiteKey, 'RecaptchaV3TaskProxyless', pageAction);
+    let result = await getTaskResult(taskId);
+    // 如果result为空，等待0.3分钟后再次请求
+    if (!result) {
+        await sleep(0.1);
+        result = await getTaskResult(taskId);
+    }
+    // 如果再次为空，抛出错误
+    if (!result) {
+        throw new Error(`${pageAction} 人机验证失败`);
+    }
+    const { gRecaptchaResponse } = result.solution
+    return gRecaptchaResponse
+
+
+}
 
 async function login (wallet){
+    const gRecaptchaResponse = await recaptcha('login');
     const url = 'https://api.qna3.ai/api/v2/auth/login?via=wallet';
     const msg = 'AI + DYOR = Ultimate Answer to Unlock Web3 Universe'
     const signature = await wallet.signMessage(msg);
-    console.log(`签名成功`);
-    const address = wallet.address;
-    
+    console.log(`当前地址${wallet.address}已签名`);
 
     const data = {
         'wallet_address': wallet.address,
-        'signature': signature
-        };
-    const response = await axios.post(url, data, {headers, agent});
-    headers['Authorization'] = `bearer ${response.data.data.accessToken}`;
-    console.log(`登录成功,开始签到`);
-    return response.data.data;
+        'signature': signature,
+        'recaptcha': gRecaptchaResponse,
+    };
+    const urlConfig = {
+        headers: headers,
+        httpsAgent: agent,
+        httpAgent: agent,
+        method: 'post',
+        data: data,
+    };
+    const response = await sendRequest(url, urlConfig);
+    headers['Authorization'] = `bearer ${response.data.accessToken}`;
+    console.log(`登录成功，开始签到`);
+    return response.data
 }
 
 async function checkIn(wallet) {
-    const contract = contractTemplate.connect(wallet);
-    const tx = await contract.checkIn(1);
+    const contractInstance = contract.connect(wallet);
+    const tx = await contractInstance.checkIn(1);
     const transactionInfo = await tx.wait();
     console.log(`签到tx: ${tx.hash}开始等待验证`);
 
-    const url = 'https://api.qna3.ai/api/v2/my/check-in'
-
+    const url = 'https://api.qna3.ai/api/v2/my/check-in';
     const data = {
-        "hash": transactionInfo.transactionHash, 
-        "via": 'opbnb'
+        "hash": transactionInfo.transactionHash,
+        "via": 'opbnb',
+        };
+    const urlConfig = {
+        headers: headers,
+        httpsAgent: agent,
+        httpAgent: agent,
+        method: 'post',
+        data: data,
     };
-    const response = await axios.post(url,data, {
-        headers,
-        agent 
-    } );
-    
-    console.log(response.data);
-    return response.data.statusCode;
+    const response = await sendRequest(url, urlConfig);
+    return response.data
 }
+
+
 
 async function main() {
     const secretKey = getKeyFromUser();
@@ -122,27 +133,20 @@ async function main() {
         })
         .on('end', async () => {
             for (const walletInfo of wallets) {
-                try {
-                    const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey, provider);
-                    console.log(`开始为 ${wallet.address}签到`);
-                    await login(wallet);
-                    await checkIn(wallet);
-                } catch (error) {
-                    console.error('操作失败:', error);
-                }
-            }
-            if (checkIn === 200) {
-                console.log(`签到成功🏅`);
+                const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey, provider);
+                console.log(`开始为 ${wallet.address}签到`);
+                console.log(`请求google验证中......`)
+                const loginStatus = await login(wallet);
+                console.log(loginStatus)
+                const checkInStatus = await checkIn(wallet);
+                console.log(checkInStatus)
                 // 暂停一段时间
                 const pauseTime = randomPause();
                 console.log(`任务完成，线程暂停${pauseTime}秒`);
                 await sleep(pauseTime);
-            } else {
-                console.error(`签到失败`);
             }
-        // 暂停一段时间
-        
         });
+
 }
 
 main();

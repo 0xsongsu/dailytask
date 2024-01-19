@@ -80,8 +80,8 @@ async function login(wallet) {
     try {
         const response = await axios.post(url, data, { 
             headers: headers, 
-            //httpsAgent: agent,
-            //httpAgent: agent,
+            httpsAgent: agent,
+            httpAgent: agent,
         });
         const token = response.data.data.token;
         const bearer = "bearer " + Buffer.from(`eoa:${token}`).toString('base64');
@@ -108,8 +108,8 @@ async function roinCheckIn() {
     try {
         const response = await axios.post(url, data, { 
             headers: headers, 
-            //httpsAgent: agent,
-            //httpAgent: agent, 
+            httpsAgent: agent,
+            httpAgent: agent, 
         });
     }
     catch (error) {
