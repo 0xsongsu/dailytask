@@ -61,7 +61,7 @@ async function main() {
                     console.log(`钱包地址：${wallet.address}`, `MINT哈希：${tx.hash}`);
 
                     const pauseTime = randomPause();
-                    console.log(`任务完成，线程暂停${pauseTime}分钟`);
+                    console.log(`任务完成，线程暂停${pauseTime}秒`);
                     await sleep(pauseTime);
                 }
                 catch (error) {

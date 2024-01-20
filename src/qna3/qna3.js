@@ -73,7 +73,7 @@ async function recaptcha(pageAction) {
 }
 
 async function login (wallet){
-    const gRecaptchaResponse = await recaptcha('login');
+    //const gRecaptchaResponse = await recaptcha('login');
     const url = 'https://api.qna3.ai/api/v2/auth/login?via=wallet';
     const msg = 'AI + DYOR = Ultimate Answer to Unlock Web3 Universe'
     const signature = await wallet.signMessage(msg);
@@ -82,7 +82,7 @@ async function login (wallet){
     const data = {
         'wallet_address': wallet.address,
         'signature': signature,
-        'recaptcha': gRecaptchaResponse,
+        //'recaptcha': gRecaptchaResponse,
     };
     const urlConfig = {
         headers: headers,
@@ -93,7 +93,6 @@ async function login (wallet){
     };
     const response = await sendRequest(url, urlConfig);
     headers['Authorization'] = `bearer ${response.data.accessToken}`;
-    console.log(`登录成功，开始签到`);
     return response.data
 }
 
@@ -135,7 +134,7 @@ async function main() {
             for (const walletInfo of wallets) {
                 const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey, provider);
                 console.log(`开始为 ${wallet.address}签到`);
-                console.log(`请求google验证中......`)
+                //console.log(`请求google验证中......`)
                 const loginStatus = await login(wallet);
                 console.log(`登录成功，开始签到`);
                 const checkInStatus = await checkIn(wallet);

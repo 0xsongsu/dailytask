@@ -1,8 +1,8 @@
 const axios = require('axios');
 const config = require('../config/runner.json');
 
-const  sleep = (minutes) => {
-    const milliseconds = minutes * 60 * 1000;
+const  sleep = (seconds) => {
+    const milliseconds = seconds * 1000;
     return new Promise(resolve => setTimeout(resolve, milliseconds));
   };
 
