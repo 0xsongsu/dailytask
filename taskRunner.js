@@ -9,6 +9,7 @@ const scripts = [
     './src/robots/getTicket.js',
     './src/robots/claimRaffle.js',
     './src/carv/carv.js',
+    './src/bearChain/bearToken.js',
 ];
 
 const password = readlineSync.question('请输入密码: ', {
