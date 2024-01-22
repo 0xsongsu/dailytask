@@ -7,10 +7,10 @@ const fakeUa = require('fake-useragent');
 const userAgent = fakeUa();
 const { sleep, randomPause, sendRequest} = require('../../utils/utils.js');
 const { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
-const { url } = require('inspector');
-const { STATUS_CODES } = require('http');
+
 
 const MAX_RETRIES = 5; // 最大重试次数
+const MAX_PROXY_CHECK_ATTEMPTS = 3;
 
 const agent = new HttpsProxyAgent(config.proxy);
 const websiteKey = '6LfOA04pAAAAAL9ttkwIz40hC63_7IsaU2MgcwVH';
@@ -67,12 +67,38 @@ async function main(wallet) {
         const addresses = await processAddresses(config.walletPath);
         console.log('开始领取测试币');
 
+        let proxyVerified = false; // 代理验证标志
+        let proxyAttempts = 0; // 代理检查尝试次数
+
+        while (!proxyVerified && proxyAttempts < MAX_PROXY_CHECK_ATTEMPTS) {
+            console.log('测试代理IP是否正常');
+            try {
+                const response = await sendRequest('https://myip.ipip.net', {
+                    method: 'get', 
+                    httpAgent: agent, 
+                    httpsAgent: agent
+                });
+                console.log('验证成功, IP信息: ', response);
+                proxyVerified = true; // 代理验证成功
+            } catch (error) {
+                proxyAttempts++;
+                console.log('代理失效，等待1分钟后重新验证');
+                await sleep(60); // 等待1分钟
+            }
+        }
+
+        if (!proxyVerified) {
+            console.log('代理验证失败，无法继续执行任务');
+            return; // 如果代理验证失败，结束函数
+        }
+
         for (const address of addresses) {
             console.log(`领取地址: ${address}`);
 
             let attempts = 0;
             while (attempts < MAX_RETRIES) {
                 try {
+
                     const recaptchaToken = await recaptcha('driptoken');
                     headers['authorization'] = `Bearer ${recaptchaToken}`;
                     const url = `https://artio-80085-ts-faucet-api-2.berachain.com/api/claim?address=${address}`;
@@ -86,21 +112,15 @@ async function main(wallet) {
                     };
 
                     const response = await sendRequest(url, urlConfig);
-                    if (response.status === 200) {
-                        console.log(`地址${address}领取成功`);
-                        break; // 成功则退出循环
-                    } else {
-                        console.log(`地址${address}领取失败，状态码：${response.status}`);
-                        break; // 如果不是重试的错误，退出循环
-                    }
-                } catch (error) {
-                    if (error.response && error.response.data.message === 'Faucet is overloading, please try again') {
-                        attempts++;
-                        console.log(`地址${address}正在重试第 ${attempts} 次...`);
+                    console.log('领取成功✅，地址：', address);
+                    } catch (error) {
+                        if (error.response && error.response.data.message === 'Faucet is overloading, please try again') {
+                            attempts++;
+                            console.log(`地址${address}正在重试第 ${attempts} 次...`);
                         await sleep(5);
-                    } else {
-                        console.error(`领取失败❌，地址：${address}:`, error);
-                        break; // 如果是非重试的错误，退出循环
+                        } else {
+                            console.error(`领取失败❌，地址：${address}:`, error);
+                            break; // 如果是非重试的错误，退出循环
                     }
                 }
             }

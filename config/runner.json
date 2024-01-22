@@ -4,7 +4,7 @@
     "bscrpc": "https://rpc.ankr.com/bsc",
     "opbnb": "https://1rpc.io/opbnb",
     "walletPath": "/Users/admin/Desktop/testwallet/wallet.csv",
-    "proxy": "http://9xmb93yh:9vhpElay773mbXc2@24.199.78.244:31112",
+    "proxy": "http://9xmb93yh:9vhpElay773mbXc2_country-SouthKorea@proxy.proxy-cheap.com:31112",
     "maxGasPrice": 50,
     "minInterval": 10,
     "maxInterval": 120

@@ -12,7 +12,7 @@ function randomPause() {
     return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
 }
 
-async function sendRequest(url, urlConfig, timeout = 100000) {
+async function sendRequest(url, urlConfig, timeout = 10000) {
     const source = axios.CancelToken.source();
     const timer = setTimeout(() => {
         source.cancel(`Request timed out after ${timeout} ms`);
