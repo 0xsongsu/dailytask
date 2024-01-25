@@ -61,7 +61,6 @@ async function login(wallet) {
     const url = 'https://interface.carv.io/protocol/login';
     const msg = `Hello! Please sign this message to confirm your ownership of the address. This action will not cost any gas fee. Here is a unique text: ${Date.now()}`;
     const signature = await wallet.signMessage(msg);
-    console.log(signature);
     const data = {
         wallet_addr: address,
         text: msg,

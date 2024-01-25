@@ -113,6 +113,7 @@ async function main(wallet) {
 
                     const response = await sendRequest(url, urlConfig);
                     console.log('领取成功✅，地址：', address);
+                    attempts = MAX_RETRIES;
                     } catch (error) {
                         if (error.response && error.response.data.message === 'Faucet is overloading, please try again') {
                             attempts++;
