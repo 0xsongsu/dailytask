@@ -1,4 +1,5 @@
 const ethers = require('ethers');
+const axios = require('axios');
 const crypto = require('crypto');
 const fs = require('fs');
 const csv = require('csv-parser');
@@ -6,11 +7,29 @@ const readlineSync = require('readline-sync');
 const config = require('../../config/runner.json');
 const contractAddress = '0xC91AAacC5adB9763CEB57488CC9ebE52C76A2b05';
 const contractABI = require('./ABI/abi.json');
-const { sleep, randomPause} = require('../../utils/utils.js');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const agent = new HttpsProxyAgent(config.proxy);
+const fakeUa = require('fake-useragent');
+const userAgent = fakeUa();
+const { sleep, randomPause, sendRequest} = require('../../utils/utils.js');
+
 
 const provider = new ethers.providers.JsonRpcProvider(config.zksrpc);
 const ethereumProvider = new ethers.providers.JsonRpcProvider(config.ethrpc);
 const contractTemplate = new ethers.Contract(contractAddress, contractABI);
+
+const headers = {
+    'authority': 'robots.farm',
+    'accept-language': 'zh-CN,zh;q=0.9',
+    'referer': 'https://robots.farm/airdrop/quests',
+    'sec-ch-ua': '"Google Chrome";v="117", "Not;A=Brand";v="8", "Chromium";v="117"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"macOS"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'user-agent': userAgent,
+};
 
 function getKeyFromUser() {
     let key;
@@ -55,6 +74,24 @@ async function checkGasPrice() {
     }
 }
 
+
+async function freePlay(wallet) {
+    const timeStamp = Math.floor(Date.now() / 1000);
+    const msg = `Robots.farm play Quest 1 ${timeStamp}`;
+    const signature = await wallet.signMessage(msg);
+    const url = `https://robots.farm/api/play-quest?new_config=true&timestamp=${timeStamp}&quest=1&signature=${signature}`;
+    try {
+        const response = await axios.get(url, { 
+            headers: headers,
+            httpsAgent: agent,
+        });
+        return response.data.message;
+    }
+    catch (error) {
+        throw error;
+    }
+}
+
 async function main() {
     const secretKey = getKeyFromUser(); // 从用户那里获取密钥
     const wallets = [];
@@ -76,6 +113,9 @@ async function main() {
                     const contract = contractTemplate.connect(wallet);
                     const tx = await contract.getTicket();
                     console.log(`钱包地址：${wallet.address}`, `交易哈希：${tx.hash}`);
+                    console.log(`开始免费游戏🎮`);
+                    const playResult = await freePlay(wallet);
+                    console.log(`免费游戏成功🎮`);
 
                     const pauseTime = randomPause();
                     console.log(`任务完成，线程暂停${pauseTime}秒`);
