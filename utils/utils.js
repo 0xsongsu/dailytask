@@ -12,28 +12,42 @@ function randomPause() {
     return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
 }
 
-async function sendRequest(url, urlConfig, timeout = 10000) {
-    const source = axios.CancelToken.source();
-    const timer = setTimeout(() => {
-        source.cancel(`Request timed out after ${timeout} ms`);
-    }, timeout);
+async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 5) {
+    let retries = 0;
 
-    const newConfig = {
-        ...urlConfig,
-        url: url,
-        timeout: timeout,
-        cancelToken: source.token,
-        method: urlConfig.method || 'get',
-        onDownloadProgress: () => clearTimeout(timer),
-    };
+    while (retries < maxRetries) {
+        const source = axios.CancelToken.source();
+        const timer = setTimeout(() => {
+            source.cancel(`Request timed out after ${timeout} ms`);
+        }, timeout);
 
-    try {
-        const response = await axios(newConfig);
-        return response.data;
-    } catch (error) {
-        console.error(error.message);
-        throw error;
+        const newConfig = {
+            ...urlConfig,
+            url: url,
+            timeout: timeout,
+            cancelToken: source.token,
+            method: urlConfig.method || 'get',
+            onDownloadProgress: () => clearTimeout(timer),
+        };
+
+        try {
+            const response = await axios(newConfig);
+            retries = maxRetries;
+            return response.data;
+        } catch (error) {
+            console.error(error.message);
+            if (error.message.includes('timed out')) {
+                retries++;
+                console.log(`Retrying request... Attempt ${retries}`);
+            } else {
+                throw error;
+            }
+        } finally {
+            clearTimeout(timer);
+        }
     }
+
+    throw new Error(`Request failed after ${maxRetries} retries`);
 }
 
 module.exports = { sleep ,randomPause, sendRequest};
