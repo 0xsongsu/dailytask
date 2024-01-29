@@ -85,7 +85,7 @@ async function freePlay(wallet) {
             headers: headers,
             httpsAgent: agent,
         });
-        return response.data.message;
+        return response;
     }
     catch (error) {
         throw error;
@@ -115,7 +115,7 @@ async function main() {
                     console.log(`钱包地址：${wallet.address}`, `交易哈希：${tx.hash}`);
                     console.log(`开始免费游戏🎮`);
                     const playResult = await freePlay(wallet);
-                    console.log(`免费游戏成功🎮`);
+                    console.log(`领取成功：${playResult}`);
 
                     const pauseTime = randomPause();
                     console.log(`任务完成，线程暂停${pauseTime}秒`);

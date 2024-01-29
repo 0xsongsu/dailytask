@@ -101,7 +101,7 @@ async function main(wallet) {
 
                     const recaptchaToken = await recaptcha('driptoken');
                     headers['authorization'] = `Bearer ${recaptchaToken}`;
-                    const url = `https://artio-80085-ts-faucet-api-2.berachain.com/api/claim?address=${address}`;
+                    const url = `https://artio-80085-faucet-api-recaptcha.berachain.com/api/claim?address=${address}`;
                     const data = { address: address };
                     const urlConfig = {
                         headers: headers,

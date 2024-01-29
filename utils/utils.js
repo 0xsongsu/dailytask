@@ -38,7 +38,7 @@ async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 5) {
             console.error(error.message);
             if (error.message.includes('timed out')) {
                 retries++;
-                console.log(`Retrying request... Attempt ${retries}`);
+                console.log(`请求超时，开始重试第 ${retries} 次`);
             } else {
                 throw error;
             }
