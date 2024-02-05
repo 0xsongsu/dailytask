@@ -17,7 +17,7 @@
 #### 2、创建wallet.csv 文件
 在桌面或者你认为安全的地方，创建一个文件夹，然后文件夹内放置一个.csv的文件，文件夹和名字你自己想一个合适的就行，不一定非得是wallet这种关键词。csv文件格式如下
 
-|address |privateKey|fuelAddress｜
+|address |privateKey|fuelAddress
 |  :----: | :----: | :-----: |
 | 钱包地址1  | 钱包私钥 | fuel钱包地址1 |
 | 钱包地址2  | 钱包私钥 | fuel钱包地址2 |
