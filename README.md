@@ -20,7 +20,7 @@
 |fuelAddress |address |privateKey
 |  :----: | :----: | :-----: |
 | fuel钱包地址1  | evm钱包地址1 | 私钥地址 |
-| fuel钱包地址2  | evm钱包私钥 | 私钥地址 |
+| fuel钱包地址2  | evm钱包地址2 | 私钥地址 |
 
 #### 3、加密wallet.csv 文件
 在utils文件夹中打开walletEncryption.js代码文件，将你的钱包文件路径填进去之后，运行代码就行，输入的是你加密的密码，不是小狐狸钱包的密码！！！
