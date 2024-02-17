@@ -4,7 +4,7 @@ const clientKey = 'YOUR CLIENT KEY';
 
 // 创建验证码任务
 async function createTask(websiteUrl, websiteKey, taskType, pageAction) {
-    const url = 'https://api.yescaptcha.com/createTask';
+    const url = 'https://tc.api.yescaptcha.com/createTask';
     const params = {
         "clientKey": clientKey,
         "task": {
@@ -15,13 +15,14 @@ async function createTask(websiteUrl, websiteKey, taskType, pageAction) {
         },
         "softID": 'YOUR CLIENT KEY'
     }
+    
     const response = await axios.post(url, params);
     return response.data;
 }
 
 // 获取验证码结果
 async function getTaskResult(taskId) {
-    const url = 'https://api.yescaptcha.com/getTaskResult';
+    const url = 'https://tc.api.yescaptcha.com/getTaskResult';
     const params = {
         clientKey: clientKey,
         taskId: taskId

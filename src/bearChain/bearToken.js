@@ -13,22 +13,22 @@ const MAX_RETRIES = 5; // 最大重试次数
 const MAX_PROXY_CHECK_ATTEMPTS = 3;
 
 const agent = new HttpsProxyAgent(config.proxy);
-const websiteKey = '6LfOA04pAAAAAL9ttkwIz40hC63_7IsaU2MgcwVH';
-const websiteUrl = 'https://artio.faucet.berachain.com';
+const websiteKey = '0x4AAAAAAARdAuciFArKhVwt';
+const websiteUrl = 'https://artio.faucet.berachain.com/';
 headers = {
-    'authority': 'artio-80085-faucet-api-recaptcha.berachain.com', 
+    'authority': 'artio-80085-faucet-api-cf.berachain.com', 
     'accept': '*/*',
     'accept-language': 'zh-CN,zh;q=0.9', 
     'cache-control': 'no-cache', 
     'content-type': 'text/plain;charset=UTF-8',
-    'origin': 'https://artio.faucet.berachain.com', 
+    'origin': 'https://artio.faucet.berachain.com/', 
     'pragma': 'no-cache',
     'referer': 'https://artio.faucet.berachain.com/',
     'user-agent': userAgent,
 }
 
-async function recaptcha(pageAction) {
-    const {taskId} = await createTask(websiteUrl, websiteKey, 'RecaptchaV3TaskProxylessM1', pageAction);
+async function recaptcha() {
+    const {taskId} = await createTask(websiteUrl, websiteKey, 'TurnstileTaskProxylessM1');
     let result = await getTaskResult(taskId);
     // 如果result为空，等待6秒后再次请求
     if (!result) {
@@ -37,10 +37,10 @@ async function recaptcha(pageAction) {
     }
     // 如果再次为空，抛出错误
     if (!result) {
-        throw new Error(`${pageAction} 人机验证失败`);
+        throw new Error(`人机验证失败`);
     }
-    const { gRecaptchaResponse } = result.solution;
-    return gRecaptchaResponse
+    const { token } = result.solution;
+    return token;
 }
 
 async function processAddresses(filePath) {
@@ -99,9 +99,9 @@ async function main(wallet) {
             while (attempts < MAX_RETRIES) {
                 try {
 
-                    const recaptchaToken = await recaptcha('driptoken');
+                    const recaptchaToken = await recaptcha();
                     headers['authorization'] = `Bearer ${recaptchaToken}`;
-                    const url = `https://artio-80085-faucet-api-recaptcha.berachain.com/api/claim?address=${address}`;
+                    const url = `https://artio-80085-faucet-api-cf.berachain.com/api/claim?address=${address}`;
                     const data = { address: address };
                     const urlConfig = {
                         headers: headers,
@@ -112,7 +112,8 @@ async function main(wallet) {
                     };
 
                     const response = await sendRequest(url, urlConfig);
-                    console.log('领取成功✅，地址：', address);
+                    const txHash = response.msg;
+                    console.log('领取成功✅ ', txHash);
                     attempts = MAX_RETRIES;
                     } catch (error) {
                         if (error.response && error.response.data.message === 'Faucet is overloading, please try again') {
