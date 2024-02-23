@@ -5,11 +5,9 @@ const path = require('path');
 // 脚本路径列表
 const scripts = [
     './src/web3go/reikiTask.js',
-    './src/qna3/qna3.js',
     './src/robots/getTicket.js',
     './src/robots/claimRaffle.js',
-    './src/carv/carv.js',
-    './src/bearChain/bearToken.js',
+    './src/lāvaNet/lavaRun.js',
 ];
 
 const password = readlineSync.question('请输入密码: ', {
