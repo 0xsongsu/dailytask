@@ -1,9 +1,8 @@
 const fs = require('fs');
 const ethers = require('ethers');
 
-// 替换成你的Lava RPC链接
-const RpcUrl = 'https://eth1.lava.build/lava-referer-d5f807d7-3ed9-4f46-b622-f7e67db9a892/';
-const provider = new ethers.providers.JsonRpcProvider(RpcUrl);
+const rpcUrls = JSON.parse(fs.readFileSync('./rpc.json', 'utf8'));
+const providers = rpcUrls.map(url => new ethers.providers.JsonRpcProvider(url));
 
 const csvFilePath = './wallet.csv';
 
@@ -11,10 +10,11 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function checkBalanceAndAppend(line, provider) {
+async function checkBalanceAndAppend(line, provider, rpcUrl) {
     const columns = line.split(',');
     const address = columns[0].trim();
     try {
+        console.log(`Using RPC: ${rpcUrl}`);
         const balance = await provider.getBalance(address);
         const balanceEther = ethers.utils.formatEther(balance);
         console.log(`Address: ${address} - Balance: ${balanceEther} ETH`);
@@ -35,8 +35,11 @@ fs.readFile(csvFilePath, 'utf8', async (err, data) => {
 
     for (let i = 1; i < lines.length; i++) {
         if (lines[i]) {
+            const providerIndex = (i - 1) % providers.length;
+            const provider = providers[providerIndex];
+            const rpcUrl = rpcUrls[providerIndex];
             await delay(Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000);
-            const result = await checkBalanceAndAppend(lines[i], provider);
+            const result = await checkBalanceAndAppend(lines[i], provider, rpcUrl);
             newCsvContent += result;
         }
     }
