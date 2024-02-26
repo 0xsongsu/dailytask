@@ -17,7 +17,7 @@
     "fake-useragent": "^1.0.1",
     "fs": "^0.0.1-security",
     "https-proxy-agent": "^7.0.2",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.7.0",
     "readline-sync": "^1.4.10",
     "save": "^2.9.0"
   }

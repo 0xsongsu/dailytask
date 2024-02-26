@@ -1,48 +1,54 @@
 const fs = require('fs');
+const fetch = require('node-fetch');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 const ethers = require('ethers');
+const config = require('../../config/runner.json');
 
-const rpcUrls = JSON.parse(fs.readFileSync('./rpc.json', 'utf8'));
-const providers = rpcUrls.map(url => new ethers.providers.JsonRpcProvider(url));
+async function main() {
+    const rpcUrls = JSON.parse(fs.readFileSync('./rpc.json', 'utf8'));
+    const addresses = fs.readFileSync('./wallet.csv', 'utf8').split('\n').filter(line => line);
 
-const csvFilePath = './wallet.csv';
+    for (let i = 0; i < addresses.length; i++) {
+        const address = addresses[i].split(',')[0].trim();
+        if (!address) continue;
 
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+        const rpcUrl = rpcUrls[Math.floor(Math.random() * rpcUrls.length)];
+        const result = await checkBalanceAndAppend(address, rpcUrl);
+        console.log(result);
+    }
 }
 
-async function checkBalanceAndAppend(line, provider, rpcUrl) {
-    const columns = line.split(',');
-    const address = columns[0].trim();
+async function fetchWithProxy(url, body, proxyUrl) {
+    const agent = new HttpsProxyAgent(proxyUrl);
+    const response = await fetch(url, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' },
+        agent,
+    });
+    return response.json();
+}
+
+async function checkBalanceAndAppend(address, rpcUrl) {
     try {
         console.log(`Using RPC: ${rpcUrl}`);
-        const balance = await provider.getBalance(address);
-        const balanceEther = ethers.utils.formatEther(balance);
-        console.log(`Address: ${address} - Balance: ${balanceEther} ETH`);
-        return `\n${line}${columns.length > 1 ? '' : ','}${balanceEther}`;
+        const jsonRpcPayload = {
+            jsonrpc: "2.0",
+            method: "eth_getBalance",
+            params: [address, "latest"],
+            id: 1,
+        };
+
+        const response = await fetchWithProxy(rpcUrl, jsonRpcPayload, config.proxy);
+        if (response.error) {
+            throw new Error(response.error.message);
+        }
+
+        const balance = ethers.utils.formatUnits(response.result, 'ether');
+        return `Address: ${address} - Balance: ${balance} ETH`;
     } catch (error) {
-        console.error(`Error fetching balance for address ${address}: ${error}`);
-        return `\n${line}`;
+        return `Error fetching balance for address ${address}`;
     }
 }
 
-fs.readFile(csvFilePath, 'utf8', async (err, data) => {
-    if (err) {
-        console.error(err);
-        return;
-    }
-    const lines = data.split('\n');
-    let newCsvContent = lines[0].includes('balance') ? lines[0] : lines[0] + ',balance';
-
-    for (let i = 1; i < lines.length; i++) {
-        if (lines[i]) {
-            const providerIndex = (i - 1) % providers.length;
-            const provider = providers[providerIndex];
-            const rpcUrl = rpcUrls[providerIndex];
-            await delay(Math.floor(Math.random() * (3000 - 1000 + 1)) + 1000);
-            const result = await checkBalanceAndAppend(lines[i], provider, rpcUrl);
-            newCsvContent += result;
-        }
-    }
-
-    console.log(newCsvContent);
-});
+main().catch(console.error);
