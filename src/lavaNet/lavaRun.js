@@ -8,7 +8,7 @@ async function main() {
     const rpcUrls = JSON.parse(fs.readFileSync('./rpc.json', 'utf8'));
     const addresses = fs.readFileSync('./wallet.csv', 'utf8').split('\n').filter(line => line);
 
-    for (let i = 0; i < addresses.length; i++) {
+    for (let i = 1; i < addresses.length; i++) {
         const address = addresses[i].split(',')[0].trim();
         if (!address) continue;
 
