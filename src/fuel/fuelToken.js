@@ -13,15 +13,15 @@ const MAX_PROXY_CHECK_ATTEMPTS = 3;
 
 const agent = new HttpsProxyAgent(config.proxy);
 const websiteKey = '6Ld3cEwfAAAAAMd4QTs7aO85LyKGdgj0bFsdBfre';
-const websiteUrl = 'https://faucet-beta-4.fuel.network/';
+const websiteUrl = 'https://faucet-beta-5.fuel.network/';
 headers = {
-    'authority': 'faucet-beta-4.fuel.network', 
+    'authority': 'faucet-beta-5.fuel.network', 
     'accept': '*/*',
     'Accept-Encoding': 'gzip, deflate, br',
     'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',  
     'content-type': 'application/json',
-    'origin': 'https://faucet-beta-4.fuel.network', 
-    'referer': 'https://faucet-beta-4.fuel.network',
+    'origin': 'https://faucet-beta-5.fuel.network', 
+    'referer': 'https://faucet-beta-5.fuel.network',
     'user-agent': userAgent,
 }
 
@@ -118,7 +118,7 @@ async function main() {
 }
 
 async function claimTestCoins(fuelAddress, recaptchaToken) {
-    const url = `https://faucet-beta-4.fuel.network/dispense`;
+    const url = `https://faucet-beta-5.fuel.network/dispense`;
     const data = { 
         address: fuelAddress,
         captcha: recaptchaToken,
