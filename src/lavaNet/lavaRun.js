@@ -2,46 +2,53 @@ const fs = require('fs').promises;
 const fetch = require('node-fetch');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const ethers = require('ethers');
+const config = require('../../config/runner.json');
+
+// 代理服务器URL
+const proxyUrl = config.proxy;
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 async function main() {
-    const config = await fs.readFile('../../config/runner.json', 'utf8').then(JSON.parse);
-    const rpcUrls = await fs.readFile('./rpc.json', 'utf8').then(JSON.parse);
-    const addresses = await fs.readFile('./wallet.csv', 'utf8')
-        .then(data => data.split('\n').filter(line => line));
+    const rpcData = await fs.readFile('./rpc.csv', 'utf8');
+    const rpcUrls = rpcData.split('\n').filter(line => line.trim());
 
-    const shuffledAddresses = shuffleArray(addresses);
+    // 定义你想要生成地址的数量，建议rpc越多地址越多，最好是rpc数量*100
+    const addressCount = 100; 
 
-    for (let i = 1; i < shuffledAddresses.length; i++) {
-        const address = shuffledAddresses[i].split(',')[0].trim();
-        if (!address) continue;
+    for (let i = 0; i < addressCount; i++) {
+        const mnemonic = ethers.Wallet.createRandom().mnemonic.phrase;
+        const wallet = ethers.Wallet.fromMnemonic(mnemonic);
+        const address = wallet.address;
 
         const rpcUrl = rpcUrls[Math.floor(Math.random() * rpcUrls.length)];
         try {
-            const result = await checkBalanceAndAppend(address, rpcUrl, config.proxy);
-            console.log(i, result);
+            const result = await checkBalanceAndAppend(address, rpcUrl, proxyUrl);
+            console.log(i + 1, result);
+            const delay = Math.floor(Math.random() * (10000 - 1000 + 1)) + 1000;
+            console.log(`等待 ${delay / 1000} 秒...`);
+        await sleep(delay);
         } catch (error) {
-            console.error(`Error fetching balance for address ${address}: ${error.message}`);
+            console.error(`查询地址 ${address}出错: ${error.message}`);
         }
     }
 }
 
 async function fetchWithProxy(url, body, proxyUrl) {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 5000);
-
     const agent = new HttpsProxyAgent(proxyUrl);
     const response = await fetch(url, {
         method: 'POST',
         body: JSON.stringify(body),
         headers: { 'Content-Type': 'application/json' },
-        agent,
-        signal: controller.signal
+        agent: agent
     });
 
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
-    return response.json();
+    return await response.json();
 }
 
 async function checkBalanceAndAppend(address, rpcUrl, proxyUrl) {
@@ -59,13 +66,15 @@ async function checkBalanceAndAppend(address, rpcUrl, proxyUrl) {
     }
 
     const balance = ethers.utils.formatUnits(response.result, 'ether');
-    return `Address: ${address} - Balance: ${balance} ETH`;
+    return `地址: ${address} - 余额: ${balance} ETH`;
 }
 
 function shuffleArray(array) {
-    return array.map(value => ({ value, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ value }) => value);
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]]; // Swap
+    }
+    return array;
 }
 
 main().catch(console.error);
