@@ -12,7 +12,7 @@ function randomPause() {
     return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
 }
 
-async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 5) {
+async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 10) {
     let retries = 0;
 
     while (retries < maxRetries) {
@@ -34,14 +34,12 @@ async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 5) {
             const response = await axios(newConfig);
             retries = maxRetries;
             return response.data;
-        } catch (error) {
-            console.error(error.message);
-            if (error.message.includes('timed out')) {
+        } 
+            catch (error) {
+                console.error(error.message);
                 retries++;
-                console.log(`请求超时，开始重试第 ${retries} 次`);
-            } else {
-                throw error;
-            }
+                console.log(`请求失败，开始重试第 ${retries} 次`);
+            
         } finally {
             clearTimeout(timer);
         }

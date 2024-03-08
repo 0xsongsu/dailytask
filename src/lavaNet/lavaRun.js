@@ -12,29 +12,36 @@ function sleep(ms) {
 }
 
 async function main() {
-    const rpcData = await fs.readFile('./rpc.csv', 'utf8');
-    const rpcUrls = rpcData.split('\n').filter(line => line.trim());
+    const rpcData = await fs.readFile('rpcData.csv', 'utf8');
+    const lines = rpcData.split('\n').slice(1); // 去除标题行
+    const rpcUrls = lines.map(line => {
+        const columns = line.split(',');
+        // 确保每行都有至少4列（即index为3的列存在）
+        return columns.length > 3 ? columns[3] : undefined;
+    }).filter(url => url && url.trim()); // 过滤掉undefined和空字符串
 
-    // 定义你想要生成地址的数量，建议rpc越多地址越多，最好是rpc数量*100
-    const addressCount = 100; 
+    let counter = 0; // 添加一个计数器以跟踪已处理的地址数量
 
-    for (let i = 0; i < addressCount; i++) {
+    while (true) { // 修改为死循环
         const mnemonic = ethers.Wallet.createRandom().mnemonic.phrase;
         const wallet = ethers.Wallet.fromMnemonic(mnemonic);
         const address = wallet.address;
 
+        // 随机选择一个RPC URL，确保了rpcUrls中不会有undefined或空字符串
         const rpcUrl = rpcUrls[Math.floor(Math.random() * rpcUrls.length)];
         try {
-            const result = await checkBalanceAndAppend(address, rpcUrl, proxyUrl);
-            console.log(i + 1, result);
-            const delay = Math.floor(Math.random() * (10000 - 1000 + 1)) + 1000;
+            const result = await checkBalanceAndAppend(address, rpcUrl, config.proxy); // 确保proxyUrl来自配置或正确设置
+            counter++;
+            console.log(`${counter}: ${result}`);
+            const delay = Math.floor(Math.random() * (9000)) + 1000; // 产生1秒到10秒之间的随机延迟
             console.log(`等待 ${delay / 1000} 秒...`);
-        await sleep(delay);
+            await sleep(delay);
         } catch (error) {
-            console.error(`查询地址 ${address}出错: ${error.message}`);
+            console.error(`查询地址 ${address} 出错: ${error.message}`);
         }
     }
 }
+
 
 async function fetchWithProxy(url, body, proxyUrl) {
     const agent = new HttpsProxyAgent(proxyUrl);
