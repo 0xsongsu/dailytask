@@ -40,7 +40,7 @@
 
 #### 5、运行程序
 
-`node taskRunner.js`
+`node taskRunner.js` 已经废弃
 
 自动执行全部的日常签到脚本,每天都需要运行一次
 
