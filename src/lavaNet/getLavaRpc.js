@@ -138,7 +138,15 @@ async function getRpc(wallet) {
     while (true) {
         try {
             const response = await sendRequest(url, urlConfig);
-            return response.chains || [];
+            const userHash = response.user_hash;
+
+            // 拼接链接并保存到数组中
+            const ethUrl = `https://eth1.lava.build/lava-referer-${userHash}/`;
+            const nearUrl = `https://near.lava.build/lava-referer-${userHash}/`;
+            const starkUrl = `https://rpc.starknet.lava.build/lava-referer-${userHash}/`;
+            const axelarUrl = `https://tm.axelar.lava.build/lava-referer-${userHash}/`;
+
+            return [ethUrl, nearUrl, starkUrl, axelarUrl];
         } catch (error) {
             if (error.response && error.response.status === 502) {
                 console.error(`请求失败: 服务器错误 ${error.response.status}`);
@@ -152,6 +160,7 @@ async function getRpc(wallet) {
         await sleep(5); 
     }
 }
+
 
 async function saveToCsv(filePath, data) {
     // 动态确定链名称作为列标题
@@ -187,7 +196,7 @@ async function main() {
     try {
         const csvData = fs.readFileSync(csvPath, 'utf8');
     } catch (error) {
-        console.log('未找到现有rpcData文件，将创建新文件');
+        console.log('未找到现有 rpcData 文件，将创建新文件');
     }
 
     fs.createReadStream(config.walletPath)
@@ -197,30 +206,28 @@ async function main() {
         wallets.push({ ...row, decryptedPrivateKey });
     })
     .on('end', async () => {
-        console.log('所有地址已读取完毕, 开始获取RPC');
+        console.log('所有地址已读取完毕，开始获取 RPC');
         for (const walletInfo of wallets) {
             const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey);
-            console.log(`开始为 ${wallet.address} 获取RPC`);
+            console.log(`开始为 ${wallet.address} 获取 RPC`);
             const loginStatus = await login(wallet);
             const hexString = await stringToHex(loginStatus);
             const loginData = await signLoginData(hexString, wallet);
-            const chains = await getRpc(wallet);
-            chains.forEach(chain => {
-                chain.urls.forEach(url => {
-                    if (url.name.toLowerCase().includes('mainnet')) {
-                        if (!data[wallet.address]) {
-                            data[wallet.address] = {};
-                        }
-                        data[wallet.address][chain.name] = url.value;
-                    }
-                });
-            });
+            const rpcUrls = await getRpc(wallet);
+
+            // 将四个链接保存到数据对象中
+            data[wallet.address] = {
+                ETH: rpcUrls[0],
+                NEAR: rpcUrls[1],
+                STARK: rpcUrls[2],
+                AXELAR: rpcUrls[3]
+            };
+
+            // 将数据保存到 CSV 文件
             await saveToCsv(csvPath, data);
         }
-        console.log('所有地址的RPC信息已获取完毕并保存');
-    }
-    );
+        console.log('所有地址的 RPC 信息已获取完毕并保存');
+    });
 }
-
 
 main();
