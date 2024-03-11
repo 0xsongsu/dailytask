@@ -49,7 +49,7 @@ async function main() {
     const lines = rpcData.split('\n').slice(1); // 去除标题行
     const rpcUrls = lines.map(line => {
         const columns = line.split(',');
-        return columns.length > 3 ? columns[3] : undefined;
+        return columns.length > 1 ? columns[1] : undefined;
     }).filter(url => url && url.trim()); // 过滤掉空URL
 
     let counter = 0; // 添加一个计数器以跟踪已处理的地址数量
