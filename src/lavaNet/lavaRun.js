@@ -98,6 +98,11 @@ async function checkBalanceAndAppend(address, rpcUrl, proxyUrl) {
 
     const balance = ethers.utils.formatUnits(response.result, 'ether');
     return `地址: ${address} - 余额: ${balance} ETH`;
+    console.log('暂停1-5秒');
+    await new Promise(resolve => setTimeout(resolve, Math.random() * 4000 + 1000));
+    sleep = () => new Promise(resolve => setTimeout(resolve, Math.random() * 4000 + 1000));
+    await sleep();
+
 }
 
 main().catch(console.error);
