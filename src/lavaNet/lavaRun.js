@@ -61,6 +61,10 @@ async function main() {
             const result = await checkBalanceAndAppend(address, rpcUrl, config.proxy);
             counter++;
             console.log(`${counter}: ${result}`);
+            console.log('暂停1-5秒');
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 4000 + 1000));
+            sleep = () => new Promise(resolve => setTimeout(resolve, Math.random() * 4000 + 1000));
+            await sleep();
         } catch (error) {
             console.error(`查询地址出错: ${error.message}`);
         }
@@ -98,10 +102,6 @@ async function checkBalanceAndAppend(address, rpcUrl, proxyUrl) {
 
     const balance = ethers.utils.formatUnits(response.result, 'ether');
     return `地址: ${address} - 余额: ${balance} ETH`;
-    console.log('暂停1-5秒');
-    await new Promise(resolve => setTimeout(resolve, Math.random() * 4000 + 1000));
-    sleep = () => new Promise(resolve => setTimeout(resolve, Math.random() * 4000 + 1000));
-    await sleep();
 
 }
 
