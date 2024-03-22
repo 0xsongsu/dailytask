@@ -21,7 +21,11 @@ let headers = {
     'User-Agen': userAgent,
     'X-App-Id': 'carv',
 };
-
+let getHeaders = {
+    'authority': 'interface.carv.io',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'User-Agen': userAgent,
+}
 function getKeyFromUser() {
     let key;
     if (process.env.SCRIPT_PASSWORD) {
@@ -55,8 +59,20 @@ function formHexData(string) {
 
     return '0'.repeat(64 - string.length) + string;
 }
-
-async function login(wallet) {
+async function getSignature(){
+    const url = "https://interface.carv.io/protocol/wallet/get_signature_text"
+    try{
+        const response = await axios.get(url, { 
+            headers: getHeaders
+        });
+        const signText = response.data.data.text;
+        return signText
+    }catch(error){
+        console.error('获取签名字符发生错误:', error.message);
+        return null;
+    }
+}
+async function login(wallet,msg) {
     const address = wallet.address;
     const url = 'https://interface.carv.io/protocol/login';
     const msg = `Hello! Please sign this message to confirm your ownership of the address. This action will not cost any gas fee. Here is a unique text: ${Date.now()}`;
@@ -196,7 +212,8 @@ function main () {
                     const provider = new ethers.providers.JsonRpcProvider(config.opbnb);
                     const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey,provider);
                     console.log(`开始为 ${wallet.address}签到`);
-                    const bearer = await login(wallet);
+                    const msg = await getSignature()
+                    const bearer = await login(wallet,msg);
                     const roinCheck = await roinCheckIn(bearer);
                     const checkData = await checkIndata();
                     const checkInopBnb = await checkIn(wallet, checkData);
