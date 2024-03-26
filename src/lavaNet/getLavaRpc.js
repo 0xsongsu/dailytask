@@ -14,20 +14,23 @@ const agent = new HttpsProxyAgent(config.proxy);
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 // 这里定义了邀请码，请自行更换成自己的邀请码
-const inviteCode = 'LEAP1';
+const inviteCode = 'YGM6I';
 const provider = new Web3.providers.HttpProvider(config.ethrpc);
 const web3 = new Web3(provider);
 
 const headers = {
-    'authority': 'points-api.lavanet.xyz',
-    'accept': 'application/json',
-    'content-type': 'application/json',
-    'origin': 'https://points.lavanet.xyz',
-    'referer': 'https://points.lavanet.xyz/',
-    'sec-ch-ua-platform': '"Windows"',
-    'user-agent': userAgent,
-    'x-lang': 'english',
-};
+    "accept": "application/json",
+    "accept-language": "zh-CN,zh;q=0.9",
+    "content-type": "application/json",
+    "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-site",
+    "Referer": "https://points.lavanet.xyz/",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  }
 
 
 function getKeyFromUser() {
@@ -52,18 +55,6 @@ function decrypt(text, secretKey) {
     return decrypted.toString();
 }
 
-async function retryRequest(url, data, urlConfig) {
-    while (true) { // 使用死循环，直到请求成功
-        try {
-            return await axios.post(url, data, urlConfig);
-        } catch (error) {
-            console.log(`请求遇到错误，等待5秒后重试...`);
-            await sleep(5); // 出错时等待5秒后重试
-        }
-    }
-}
-
-
 async function login(wallet) {
     const url = 'https://points-api.lavanet.xyz/accounts/metamask/login/';
     const data = {
@@ -79,14 +70,9 @@ async function login(wallet) {
     };
 
     const response = await axios.post(url, data, urlConfig);
-    if (response.headers && response.headers['set-cookie']) {
-        headers['cookie'] = response.headers['set-cookie'].map(cookie => {
-            return cookie.split(';')[0];
-        }).join('; ');
-    } else {
-        console.warn('响应中没有找到 set-cookie 头。');
-    }
-
+    const loginCookie = response.headers['set-cookie'];
+    let cookieString = loginCookie.map(cookie => cookie.replace('Secure,', '')).join('; ');
+    headers['cookie'] = cookieString;
     return response.data.data;
 }
 async function stringToHex (str) {
@@ -114,14 +100,10 @@ async function signLoginData(hexString, wallet) {
         headers: headers,
         httpsAgent: agent,
     };
-    const response = await retryRequest(url, data, urlConfig);
-    if (response.headers && response.headers['set-cookie']) {
-        headers['cookie'] = response.headers['set-cookie'].map(cookie => {
-            return cookie.split(';')[0];
-        }).join('; ');
-    } else {
-        console.warn('响应中没有找到 set-cookie 头。');
-    }
+    const response = await axios.post(url, data, urlConfig);
+    const cookies = response.headers['set-cookie'];
+    let cookieString = cookies.map(cookie => cookie.replace('Secure,', '')).join('; ');
+    headers['cookie'] = cookieString;
     return response.data;
     
 }
