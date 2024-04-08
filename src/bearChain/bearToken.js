@@ -5,9 +5,9 @@ const config = require('../../config/runner.json');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const fakeUa = require('fake-useragent');
 const userAgent = fakeUa();
-const { sleep, randomPause, sendRequest} = require('../../utils/utils.js');
+const { sleep, randomPause, sendRequest } = require('../../utils/utils.js');
 const { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
-
+const ethers = require('ethers');
 
 const MAX_RETRIES = 5; // 最大重试次数
 const MAX_PROXY_CHECK_ATTEMPTS = 3;
@@ -15,24 +15,24 @@ const MAX_PROXY_CHECK_ATTEMPTS = 3;
 const agent = new HttpsProxyAgent(config.proxy);
 const websiteKey = '0x4AAAAAAARdAuciFArKhVwt';
 const websiteUrl = 'https://artio.faucet.berachain.com/';
-headers = {
-    'authority': 'artio-80085-faucet-api-cf.berachain.com', 
+let headers = {
+    'authority': 'artio-80085-faucet-api-cf.berachain.com',
     'accept': '*/*',
-    'accept-language': 'zh-CN,zh;q=0.9', 
-    'cache-control': 'no-cache', 
+    'accept-language': 'zh-CN,zh;q=0.9',
+    'cache-control': 'no-cache',
     'content-type': 'text/plain;charset=UTF-8',
-    'origin': 'https://artio.faucet.berachain.com/', 
+    'origin': 'https://artio.faucet.berachain.com/',
     'pragma': 'no-cache',
     'referer': 'https://artio.faucet.berachain.com/',
     'user-agent': userAgent,
 }
 
 async function recaptcha() {
-    const {taskId} = await createTask(websiteUrl, websiteKey, 'TurnstileTaskProxylessM1');
+    const { taskId } = await createTask(websiteUrl, websiteKey, 'TurnstileTaskProxylessM1');
     let result = await getTaskResult(taskId);
     // 如果result为空，等待6秒后再次请求
     if (!result) {
-        await sleep(0.1);
+        await sleep(6);
         result = await getTaskResult(taskId);
     }
     // 如果再次为空，抛出错误
@@ -62,7 +62,7 @@ async function processAddresses(filePath) {
     });
 }
 
-async function main(wallet) {
+async function main() {
     try {
         const addresses = await processAddresses(config.walletPath);
         console.log('开始领取测试币');
@@ -74,8 +74,8 @@ async function main(wallet) {
             console.log('测试代理IP是否正常');
             try {
                 const response = await sendRequest('https://myip.ipip.net', {
-                    method: 'get', 
-                    httpAgent: agent, 
+                    method: 'get',
+                    httpAgent: agent,
                     httpsAgent: agent
                 });
                 console.log('验证成功, IP信息: ', response);
@@ -93,7 +93,14 @@ async function main(wallet) {
         }
 
         for (const address of addresses) {
-            console.log(`领取地址: ${address}`);
+            let checksumAddress;
+            try {
+                checksumAddress = ethers.utils.getAddress(address);
+            } catch (error) {
+                console.error(`地址格式错误: ${address}`, error);
+                continue; // 跳过无效地址
+            }
+            console.log(`领取地址: ${checksumAddress}`);
 
             let attempts = 0;
             while (attempts < MAX_RETRIES) {
@@ -101,8 +108,8 @@ async function main(wallet) {
 
                     const recaptchaToken = await recaptcha();
                     headers['authorization'] = `Bearer ${recaptchaToken}`;
-                    const url = `https://artio-80085-faucet-api-cf.berachain.com/api/claim?address=${address}`;
-                    const data = { address: address };
+                    const url = `https://artio-80085-faucet-api-cf.berachain.com/api/claim?address=${checksumAddress}`;
+                    const data = { address: checksumAddress };
                     const urlConfig = {
                         headers: headers,
                         httpsAgent: agent,
@@ -114,15 +121,15 @@ async function main(wallet) {
                     const response = await sendRequest(url, urlConfig);
                     const txHash = response.msg;
                     console.log('领取成功✅ ', txHash);
-                    attempts = MAX_RETRIES;
-                    } catch (error) {
-                        if (error.response && error.response.data.message === 'Faucet is overloading, please try again') {
-                            attempts++;
-                            console.log(`地址${address}正在重试第 ${attempts} 次...`);
+                    break; // 成功后退出循环
+                } catch (error) {
+                    attempts++;
+                    if (error.response && error.response.data && error.response.data.message === 'Faucet is overloading, please try again') {
+                        console.log(`地址${checksumAddress}正在重试第 ${attempts} 次...`);
                         await sleep(5);
-                        } else {
-                            console.error(`领取失败❌，地址：${address}:`, error);
-                            break; // 如果是非重试的错误，退出循环
+                    } else {
+                        console.error(`领取失败❌，地址：${checksumAddress}:`, error);
+                        break; // 如果是非重试的错误，退出循环
                     }
                 }
             }
