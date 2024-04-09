@@ -12,7 +12,7 @@ function randomPause() {
     return Math.floor(Math.random() * (maxSeconds - minSeconds + 1)) + minSeconds;
 }
 
-async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 10) {
+async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 3) {
     let retries = 0;
 
     while (retries < maxRetries) {

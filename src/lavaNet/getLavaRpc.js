@@ -14,23 +14,20 @@ const agent = new HttpsProxyAgent(config.proxy);
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 
 // 这里定义了邀请码，请自行更换成自己的邀请码
-const inviteCode = 'YGM6I';
+const inviteCode = 'SIRNB';
 const provider = new Web3.providers.HttpProvider(config.ethrpc);
 const web3 = new Web3(provider);
 
 const headers = {
-    "accept": "application/json",
-    "accept-language": "zh-CN,zh;q=0.9",
-    "content-type": "application/json",
-    "sec-ch-ua": "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"",
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": "\"Windows\"",
-    "sec-fetch-dest": "empty",
-    "sec-fetch-mode": "cors",
-    "sec-fetch-site": "same-site",
-    "Referer": "https://points.lavanet.xyz/",
-    "Referrer-Policy": "strict-origin-when-cross-origin"
-  }
+    'authority': 'points-api.lavanet.xyz',
+    'accept': 'application/json',
+    'content-type': 'application/json',
+    'origin': 'https://points.lavanet.xyz',
+    'referer': 'https://points.lavanet.xyz/',
+    'sec-ch-ua-platform': '"Windows"',
+    'user-agent': userAgent,
+    'x-lang': 'english',
+};
 
 
 function getKeyFromUser() {
@@ -57,8 +54,9 @@ function decrypt(text, secretKey) {
 
 async function login(wallet) {
     const url = 'https://points-api.lavanet.xyz/accounts/metamask/login/';
+    const address = wallet.address.toLowerCase();
     const data = {
-        account: wallet.address,
+        account: address,
         invite_code: inviteCode,
         process: 'token',
     };
@@ -88,9 +86,9 @@ async function stringToHex (str) {
 async function signLoginData(hexString, wallet) {
     const url = 'https://points-api.lavanet.xyz/accounts/metamask/login/';
     const signature = await web3.eth.accounts.sign(hexString, wallet.privateKey);
-
+    const address = wallet.address.toLowerCase();
     const data = {
-        account: wallet.address,
+        account: address,
         login_token: signature.signature,
         invite_code: inviteCode,
         process: 'verify',
