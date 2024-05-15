@@ -3,7 +3,7 @@ const bip39 = require('bip39');
 const fs = require('fs');
 const path = require('path');
 
-const numberOfWallets = 100; // 生成的钱包数量
+const numberOfWallets = 5000; // 生成的钱包数量
 
 function generateMnemonic() {
   return bip39.generateMnemonic();

@@ -1,20 +1,21 @@
 const axios = require('axios');
 const config = require('../../config/runner.json');
 
-const clientKey = config.yescaptchaKEY;
+const clientKEY = config.capsolverKEY;
 
 // 创建验证码任务
 async function createTask(websiteUrl, websiteKey, taskType, pageAction) {
-    const url = 'https://tc.api.yescaptcha.com/createTask';
+    const url = 'https://api.capsolver.com/createTask';
     const params = {
-        "clientKey": clientKey,
+        "clientKey": clientKEY,
+        "appID": clientKEY,
         "task": {
             "websiteURL": websiteUrl,
             "websiteKey": websiteKey,
             "pageAction": pageAction,
             "type": taskType
         },
-        "softID": clientKey
+        
     }
     
     const response = await axios.post(url, params);
@@ -23,9 +24,9 @@ async function createTask(websiteUrl, websiteKey, taskType, pageAction) {
 
 // 获取验证码结果
 async function getTaskResult(taskId) {
-    const url = 'https://tc.api.yescaptcha.com/getTaskResult';
+    const url = 'https://api.capsolver.com/getTaskResult';
     const params = {
-        clientKey: clientKey,
+        clientKey: clientKEY,
         taskId: taskId
     }
 
@@ -42,6 +43,5 @@ async function getTaskResult(taskId) {
             await getTaskResult(taskId);
         }
 }
-
 
 module.exports = { createTask, getTaskResult };

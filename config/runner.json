@@ -4,7 +4,9 @@
     "bscrpc": "https://rpc.ankr.com/bsc",
     "opbnb": "https://1rpc.io/opbnb",
     "walletPath": "/Users/admin/Desktop/testwallet/testwallet.csv",
-    "proxy": " ",
+    "proxy": "",
+    "yescaptchaKEY": "",
+    "capsolverKEY": "",
     "maxGasPrice": 50,
     "minInterval": 10,
     "maxInterval": 120

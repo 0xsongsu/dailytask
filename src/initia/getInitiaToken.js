@@ -4,7 +4,8 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const fakeUa = require('fake-useragent');
 const userAgent = fakeUa();
 const { sleep, sendRequest } = require('../../utils/utils.js');
-const { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
+// const { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
+const { createTask, getTaskResult } = require('../../utils/capsolver/capsolver.js');
 const axios = require('axios');
 
 const MAX_RETRIES = 5; // 最大重试次数
@@ -26,7 +27,7 @@ const headers = {
 };
 
 async function recaptcha(pageAction) {
-    const {taskId} = await createTask(websiteUrl, websiteKey, 'RecaptchaV3TaskProxylessM1', pageAction);
+    const {taskId} = await createTask(websiteUrl, websiteKey, 'ReCaptchaV3TaskProxyLess', pageAction);
     let result = await getTaskResult(taskId);
     if (!result) {
         await sleep(0.1);
