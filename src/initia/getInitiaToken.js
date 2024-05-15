@@ -6,13 +6,14 @@ const userAgent = fakeUa();
 const { sleep, sendRequest } = require('../../utils/utils.js');
 // const { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
 const { createTask, getTaskResult } = require('../../utils/capsolver/capsolver.js');
+//const { createTask, getTaskResult } = require('../../utils/fastcaptcha/fastcaptcha.js');
 const axios = require('axios');
 
 const MAX_RETRIES = 5; // 最大重试次数
 const MAX_PROXY_CHECK_ATTEMPTS = 3;
 
 const agent = new HttpsProxyAgent(config.proxy);
-const websiteKey = '6LdMwdwpAAAAAEUk4nB751s7AI0ckPqNAOUCeb6h';
+const websiteKey = '6LdLhtYpAAAAAOe1xmceNR-i6MTtzq7N6AYztoVI';
 const websiteUrl = 'https://faucet.testnet.initia.xyz/';
 const headers = {
     'authority': 'faucet-api.initiation-1.initia.xyz',
@@ -27,7 +28,7 @@ const headers = {
 };
 
 async function recaptcha(pageAction) {
-    const {taskId} = await createTask(websiteUrl, websiteKey, 'ReCaptchaV3TaskProxyLess', pageAction);
+    const {taskId} = await createTask(websiteUrl, websiteKey, 'ReCaptchaV2TaskProxyLess', pageAction);
     let result = await getTaskResult(taskId);
     if (!result) {
         await sleep(0.1);
@@ -126,7 +127,7 @@ async function main() {
             }
         }
     } catch (error) {
-        console.error('领取测试币失败:', error);
+        console.error('领取测试币失败:', response.data.data);
     }
 }
 
