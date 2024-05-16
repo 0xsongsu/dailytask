@@ -1,5 +1,7 @@
 const axios = require('axios');
 const config = require('../config/runner.json');
+const readlineSync = require('readline-sync');
+const crypto = require('crypto');
 
 const  sleep = (seconds) => {
     const milliseconds = seconds * 1000;
@@ -48,6 +50,16 @@ async function sendRequest(url, urlConfig, timeout = 10000, maxRetries = 3) {
     throw new Error(`Request failed after ${maxRetries} retries`);
 }
 
+function getKeyFromUser() {
+    let key;
+    if (process.env.SCRIPT_PASSWORD) {
+        key = process.env.SCRIPT_PASSWORD;
+    } else {
+        key = readlineSync.question('请输入你的密码: ', {
+            hideEchoBack: true,
+        });
+    }
+    return crypto.createHash('sha256').update(String(key)).digest('base64').substr(0, 32);
+}
 
-
-module.exports = { sleep ,randomPause, sendRequest};
+module.exports = { sleep ,randomPause, sendRequest, getKeyFromUser,};

@@ -3,6 +3,7 @@
     "ethrpc": "https://rpc.ankr.com/eth",
     "bscrpc": "https://rpc.ankr.com/bsc",
     "opbnb": "https://1rpc.io/opbnb",
+    "sepolia": "https://1rpc.io/sepolia",
     "walletPath": "/Users/admin/Desktop/testwallet/testwallet.csv",
     "proxy": "",
     "yescaptchaKEY": "",
