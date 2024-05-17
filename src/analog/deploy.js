@@ -6,7 +6,7 @@ const ethers = require('ethers');
 const { getKeyFromUser } = require('../../utils/utils.js');
 const config = require('../../config/runner.json');
 const abi = require('./abi.json');
-const { createLogger, transports, format } = require('winston');
+const { createLogger, transports, format, http } = require('winston');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const agent = new HttpsProxyAgent(config.proxy);
 
@@ -61,7 +61,7 @@ async function deployContract(wallet) {
         logger.info(`交易哈希: ${txHash}`);
         const receipt = await wallet.provider.waitForTransaction(txHash);
         if (receipt.status === 1) {
-            logger.info(`合约部署成功，合约地址: ${receipt.contractAddress}`);
+            logger.info(`合约部署成功: ${receipt.contractAddress}`);
             return receipt.contractAddress;
         } else {
             logger.error('交易未能成功上链');
@@ -73,7 +73,7 @@ async function deployContract(wallet) {
     }
 }
 
-async function verifyContract(contractAddress) {
+async function verifyContract(contractAddress, maxRetries = 5 ) { // maxRetries = 5 为默认值,自行修改
     const url = `https://eth-sepolia.blockscout.com/api/v2/smart-contracts/${contractAddress}/verification/via/flattened-code`;
     const params = {
         "compiler_version": "v0.8.25+commit.b61c2a91",
@@ -87,23 +87,39 @@ async function verifyContract(contractAddress) {
         "license_type": "none"
     };
 
-    try {
-        logger.info(`开始验证合约: ${contractAddress}`);
+    const requestConfig = {
+        httpsAgent: agent,
+        httpAgent: agent,
+        timeout: 10000, // 设置超时
+        method: 'post',
+        data: params
+    };
 
-        const response = await axios.post(url, params);
-        
-        if (response.status === 200 && response.data) {
-            logger.info(`合约验证成功: ${response.data.message || '成功'}`);
-            return true;
-        } else {
-            logger.error(`合约验证失败，状态码: ${response.status}, 响应: ${response.data}`);
-            return false;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            logger.info(`开始验证合约: ${contractAddress} (尝试第 ${attempt} 次)`);
+
+            const response = await axios(url, requestConfig);
+            
+            if (response.status === 200 && response.data) {
+                logger.info(`合约验证成功: ${response.data.message || '成功'}`);
+                return true;
+            } else {
+                logger.error(`合约验证失败，状态码: ${response.status}, 响应: ${response.data}`);
+                return false;
+            }
+        } catch (error) {
+            if (attempt < maxRetries) {
+                logger.warn(`验证发生错误: ${error.message}，重试...`);
+            } else {
+                logger.error(`验证发生错误: ${error.message}`);
+                return false;
+            }
         }
-    } catch (error) {
-        logger.error(`验证发生错误: ${error.message}`);
-        return false;
     }
 }
+
+
 
 function generateRandomHex() {
     const minLength = 6;
