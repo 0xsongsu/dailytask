@@ -36,7 +36,7 @@
 
 #### 4、修改程序变量
 - ***rpc：自定义你的rpc
-- proxy：自定义你的代理链接，购买链接：https://iproyal.cn/?r=375164
+- proxy：自定义你的代理链接，购买链接：https://iproyal.cn/?r=375164 购买随机住宅IP就行
 - walletPath：钱包文件夹放置的路径
 	`/****/****/***/*****.csv`
 - maxGasPrice：限制主网gas，高于设定值程序不会运行，进入持续检查

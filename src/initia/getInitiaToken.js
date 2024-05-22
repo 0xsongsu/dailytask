@@ -10,11 +10,10 @@ const {
   getTaskResult,
 } = require("../../utils/yesCaptcha/yesCaptcha.js");
 const axios = require("axios");
-const { log } = require("console");
 
 const MAX_RETRIES = 10; // 最大重试次数
-const MAX_PROXY_CHECK_ATTEMPTS = 3;// 代理检查次数
-const CONCURRENT_REQUESTS = 50; // 并发请求数量，根据你代理和机器性能调整，如果代理报错比较多，适当减少并发数量
+const MAX_PROXY_CHECK_ATTEMPTS = 3; // 代理检查次数
+const CONCURRENT_REQUESTS = 10; // 并发请求数量
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
 const agent = new HttpsProxyAgent(config.proxy);
 const websiteKey = "04d28d90-d5b9-4a90-94e5-a12c595bd4e2";
@@ -195,14 +194,17 @@ async function main() {
       return;
     }
 
-    const addressChunks = [];
-    for (let i = 0; i < addresses.length; i += CONCURRENT_REQUESTS) {
-      addressChunks.push(addresses.slice(i, i + CONCURRENT_REQUESTS));
+    let currentIndex = 0;
+
+    async function worker() {
+      while (currentIndex < addresses.length) {
+        const address = addresses[currentIndex++];
+        await claimToken(address);
+      }
     }
 
-    for (const chunk of addressChunks) {
-      await Promise.all(chunk.map(address => claimToken(address)));
-    }
+    const workers = Array(CONCURRENT_REQUESTS).fill(null).map(() => worker());
+    await Promise.all(workers);
 
   } catch (error) {
     logger().error("领取测试币失败:", error);
