@@ -10,6 +10,7 @@ const ethers = require('ethers');
 
 const MAX_RETRIES = 5; // 最大重试次数
 const MAX_PROXY_CHECK_ATTEMPTS = 3;
+const CONCURRENT_REQUESTS = 10; // 并发请求数量
 
 const agent = new HttpsProxyAgent(config.proxy);
 const websiteKey = '0x4AAAAAAARdAuciFArKhVwt';
@@ -24,7 +25,7 @@ let headers = {
     'pragma': 'no-cache',
     'referer': 'https://artio.faucet.berachain.com/',
     'user-agent': userAgent,
-}
+};
 
 async function recaptcha() {
     const { taskId } = await createTask(websiteUrl, websiteKey, 'TurnstileTaskProxylessM1');
@@ -49,6 +50,40 @@ async function processAddresses(filePath) {
     } catch (error) {
         logger().error('读取地址失败:', error);
         throw error;
+    }
+}
+
+async function claimToken(address) {
+    logger().info(`开始为 ${address} 地址领取测试币`);
+    let attempts = 0;
+    while (attempts < MAX_RETRIES) {
+        try {
+            const recaptchaToken = await recaptcha();
+            headers['authorization'] = `Bearer ${recaptchaToken}`;
+            const url = `https://artio-80085-faucet-api-cf.berachain.com/api/claim?address=${address}`;
+            const data = { address };
+            const urlConfig = {
+                headers: headers,
+                httpsAgent: agent,
+                httpAgent: agent,
+                method: 'post',
+                data: data,
+            };
+
+            const response = await sendRequest(url, urlConfig);
+            const txHash = response.msg;
+            logger().info(`领取成功✅，交易哈希: ${txHash}`);
+            return;
+        } catch (error) {
+            attempts++;
+            if (error.response && error.response.data && error.response.data.message === 'Faucet is overloading, please try again') {
+                logger().warn(`地址${address}正在重试第 ${attempts} 次...`);
+                await sleep(5);
+            } else {
+                logger().error(`领取失败❌，地址：${address}:`, error);
+                break;
+            }
+        }
     }
 }
 
@@ -82,47 +117,25 @@ async function main() {
             return;
         }
 
-        for (const address of addresses) {
-            let checksumAddress;
-            try {
-                checksumAddress = ethers.utils.getAddress(address);
-            } catch (error) {
-                logger().error(`地址格式错误: ${address}`, error);
-                continue;
-            }
-            logger().info(`领取地址: ${checksumAddress}`);
+        let currentIndex = 0;
 
-            let attempts = 0;
-            while (attempts < MAX_RETRIES) {
+        async function worker() {
+            while (currentIndex < addresses.length) {
+                const address = addresses[currentIndex++];
+                let checksumAddress;
                 try {
-                    const recaptchaToken = await recaptcha();
-                    headers['authorization'] = `Bearer ${recaptchaToken}`;
-                    const url = `https://artio-80085-faucet-api-cf.berachain.com/api/claim?address=${checksumAddress}`;
-                    const data = { address: checksumAddress };
-                    const urlConfig = {
-                        headers: headers,
-                        httpsAgent: agent,
-                        httpAgent: agent,
-                        method: 'post',
-                        data: data,
-                    };
-
-                    const response = await sendRequest(url, urlConfig);
-                    const txHash = response.msg;
-                    logger().info(`领取成功✅，交易哈希: ${txHash}`);
-                    break;
+                    checksumAddress = ethers.utils.getAddress(address);
                 } catch (error) {
-                    attempts++;
-                    if (error.response && error.response.data && error.response.data.message === 'Faucet is overloading, please try again') {
-                        logger().warn(`地址${checksumAddress}正在重试第 ${attempts} 次...`);
-                        await sleep(5);
-                    } else {
-                        logger().error(`领取失败❌，地址：${checksumAddress}:`, error);
-                        break;
-                    }
+                    logger().error(`地址格式错误: ${address}`, error);
+                    continue;
                 }
+                await claimToken(checksumAddress);
             }
         }
+
+        const workers = Array(CONCURRENT_REQUESTS).fill(null).map(() => worker());
+        await Promise.all(workers);
+
     } catch (error) {
         logger().error('处理地址列表时出错:', error);
     }
