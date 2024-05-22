@@ -1,23 +1,20 @@
 const fs = require("fs");
 const config = require("../../config/runner.json");
-const { HttpsProxyAgent } = require("https-proxy-agent");
+const { HttpsProxyAgent } = require('https-proxy-agent');
 const { solver } = require("../../utils/challengeSolver/initia_solver.js");
 const fakeUa = require("fake-useragent");
 const userAgent = fakeUa();
-const { sleep, sendRequest } = require("../../utils/utils.js");
+const { sleep, sendRequest, logger } = require("../../utils/utils.js");
 const {
   createTask,
   getTaskResult,
 } = require("../../utils/yesCaptcha/yesCaptcha.js");
-// const {
-//   createTask,
-//   getTaskResult,
-// } = require("../../utils/capsolver/capsolver.js");
-//const { createTask, getTaskResult } = require('../../utils/fastcaptcha/fastcaptcha.js');
 const axios = require("axios");
+const { log } = require("console");
 
-const MAX_RETRIES = 5; // 最大重试次数
-const MAX_PROXY_CHECK_ATTEMPTS = 3;
+const MAX_RETRIES = 10; // 最大重试次数
+const MAX_PROXY_CHECK_ATTEMPTS = 3;// 代理检查次数
+const CONCURRENT_REQUESTS = 50; // 并发请求数量，根据你代理和机器性能调整，如果代理报错比较多，适当减少并发数量
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
 const agent = new HttpsProxyAgent(config.proxy);
 const websiteKey = "04d28d90-d5b9-4a90-94e5-a12c595bd4e2";
@@ -58,7 +55,7 @@ async function processAddresses(filePath) {
   return new Promise((resolve, reject) => {
     fs.readFile(filePath, "utf8", (err, data) => {
       if (err) {
-        console.error("读取地址失败:", err);
+        logger().error("读取地址失败:", err);
         return reject(err);
       }
       const lines = data.split("\n");
@@ -68,7 +65,7 @@ async function processAddresses(filePath) {
           addresses.push(trimmedLine);
         }
       }
-      console.log("地址读取完毕");
+      logger().info("地址读取成功");
       resolve(addresses);
     });
   });
@@ -91,7 +88,7 @@ async function getChallenge() {
       const algorithm = data.algorithm;
       if (algorithm !== "SHA-256") {
         attempts++;
-        console.log("不支持的算法:", algorithm);
+        console.error("不支持的算法:", algorithm);
         continue;
       }
       let start = Date.now();
@@ -110,11 +107,60 @@ async function getChallenge() {
     } catch (error) {
       attempts++;
       if (error.response && error.response.data) {
-        console.log(`地址${address}正在重试第 ${attempts} 次...`);
+        console.log(`获取challenge失败，正在重试第 ${attempts} 次...`);
         await sleep(5);
       } else {
-        console.error(`计算失败❌，地址：${address}:`, error);
+        console.error(`获取challenge失败❌:`, error);
         throw new Error("计算失败");
+      }
+    }
+  }
+}
+
+async function claimToken(address) {
+  logger().info(`开始为 ${address} 地址领取测试币`);
+  let attempts = 0;
+  while (attempts < MAX_RETRIES) {
+    try {
+      const recaptchaToken = await recaptcha("faucet");
+      const challenge = await getChallenge();
+      const url = `https://faucet-api.initiation-1.initia.xyz/claim`;
+      const data = {
+        address: address,
+        altcha_payload: challenge,
+        denom: "uinit",
+        h_captcha: recaptchaToken,
+      };
+      const urlConfig = {
+        headers: headers,
+        httpsAgent: agent,
+        httpAgent: agent,
+      };
+
+      const response = await axios.post(url, data, urlConfig);
+      const amount = response.data.amount;
+      logger().info(`地址 ${address}领取成功✅ ${amount}`);
+      return;
+    } catch (error) {
+      attempts++;
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message ===
+          "Faucet is overloading, please try again"
+      ) {
+        logger().info(`地址${address}正在重试第 ${attempts} 次...`);
+        await sleep(5);
+      } else if (error.message.includes("人机验证失败")) {
+      } else if (error.response && error.response.status === 400) {
+        logger().info(`地址${address}请求报错400，正在重试第 ${attempts} 次...`);
+        await sleep(5);
+      } else if (error.response && error.response.status === 429) {
+        logger().info(`地址${address}请求报错429，正在重试第 ${attempts} 次...`);
+        await sleep(5);
+      } else {
+        logger().error(`领取失败❌，地址：${address}:`, error);
+        return;
       }
     }
   }
@@ -123,77 +169,43 @@ async function getChallenge() {
 async function main() {
   try {
     const addresses = await processAddresses("./address.txt");
-    console.log("开始领取测试币");
 
     let proxyVerified = false;
     let proxyAttempts = 0;
 
     while (!proxyVerified && proxyAttempts < MAX_PROXY_CHECK_ATTEMPTS) {
-      console.log("测试代理IP是否正常");
+      logger().info("开始验证代理是否可用");
       try {
         const response = await sendRequest("https://myip.ipip.net", {
           method: "get",
           httpAgent: agent,
           httpsAgent: agent,
         });
-        console.log("验证成功, IP信息: ", response);
+        logger().info(`代理验证成功，IP: ${response}`);
         proxyVerified = true;
       } catch (error) {
         proxyAttempts++;
-        console.log("代理失效，等待1分钟后重新验证");
+        logger().error("代理验证失败:", error);
         await sleep(60);
       }
     }
 
     if (!proxyVerified) {
-      console.log("代理验证失败，无法继续执行任务");
+      logger().error("代理验证失败，无法继续执行任务");
       return;
     }
 
-    for (const address of addresses) {
-      console.log(`领取地址: ${address}`);
-      let attempts = 0;
-      while (attempts < MAX_RETRIES) {
-        try {
-          const recaptchaToken = await recaptcha("faucet");
-          const challenge = await getChallenge();
-          const url = `https://faucet-api.initiation-1.initia.xyz/claim`;
-          const data = {
-            address: address,
-            altcha_payload: challenge,
-            denom: "uinit",
-            h_captcha: recaptchaToken,
-          };
-          const urlConfig = {
-            headers: headers,
-            httpsAgent: agent,
-            httpAgent: agent,
-          };
-
-          const response = await axios.post(url, data, urlConfig);
-          const amount = response.data.amount;
-          console.log("领取成功✅ ", amount);
-          break;
-        } catch (error) {
-          attempts++;
-          if (
-            error.response &&
-            error.response.data &&
-            error.response.data.message ===
-              "Faucet is overloading, please try again"
-          ) {
-            console.log(`地址${address}正在重试第 ${attempts} 次...`);
-            await sleep(5);
-          } else if (error.message.includes("人机验证失败")) {
-          } else {
-            console.error(`领取失败❌，地址：${address}:`, error);
-            break;
-          }
-        }
-      }
+    const addressChunks = [];
+    for (let i = 0; i < addresses.length; i += CONCURRENT_REQUESTS) {
+      addressChunks.push(addresses.slice(i, i + CONCURRENT_REQUESTS));
     }
+
+    for (const chunk of addressChunks) {
+      await Promise.all(chunk.map(address => claimToken(address)));
+    }
+
   } catch (error) {
-    console.error("领取测试币失败:", response.data.data);
+    logger().error("领取测试币失败:", error);
   }
 }
 

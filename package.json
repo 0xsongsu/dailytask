@@ -21,7 +21,7 @@
     "ethers": "^5.7.2",
     "fake-useragent": "^1.0.1",
     "fs": "^0.0.1-security",
-    "https-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.4",
     "node-fetch": "^2.7.0",
     "readline-sync": "^1.4.10",
     "save": "^2.9.0",
