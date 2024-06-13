@@ -5,30 +5,32 @@ const { HttpsProxyAgent } = require('https-proxy-agent');
 const fakeUa = require('fake-useragent');
 const userAgent = fakeUa();
 const { sleep, randomPause, sendRequest, logger } = require('../../utils/utils.js');
-const { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
+const { createTask, getTaskResult } = require('../../utils/capsolver/capsolver.js');
+// 如果用capsolver就注释下面一行，用yes就注释上面一行
+// const { createTask, getTaskResult } = require('../../utils/yesCaptcha/yesCaptcha.js');
 const ethers = require('ethers');
 
 const MAX_RETRIES = 5; // 最大重试次数
 const MAX_PROXY_CHECK_ATTEMPTS = 3;
-const CONCURRENT_REQUESTS = 10; // 并发请求数量
+const CONCURRENT_REQUESTS = 1; // 并发请求数量
 
 const agent = new HttpsProxyAgent(config.proxy);
 const websiteKey = '0x4AAAAAAARdAuciFArKhVwt';
-const websiteUrl = 'https://artio.faucet.berachain.com/';
+const websiteUrl = 'https://bartio.faucet.berachain.com/';
 let headers = {
     'authority': 'artio-80085-faucet-api-cf.berachain.com',
     'accept': '*/*',
     'accept-language': 'zh-CN,zh;q=0.9',
     'cache-control': 'no-cache',
     'content-type': 'text/plain;charset=UTF-8',
-    'origin': 'https://artio.faucet.berachain.com/',
+    'origin': 'https://bartio.faucet.berachain.com',
     'pragma': 'no-cache',
-    'referer': 'https://artio.faucet.berachain.com/',
+    'referer': 'https://bartio.faucet.berachain.com/',
     'user-agent': userAgent,
 };
 
 async function recaptcha() {
-    const { taskId } = await createTask(websiteUrl, websiteKey, 'TurnstileTaskProxylessM1');
+    const { taskId } = await createTask(websiteUrl, websiteKey, 'AntiTurnstileTaskProxyLess'); //如果你用yes，把这里改成“TurnstileTaskProxylessM1”
     let result = await getTaskResult(taskId);
     if (!result) {
         await sleep(6);
@@ -60,7 +62,7 @@ async function claimToken(address) {
         try {
             const recaptchaToken = await recaptcha();
             headers['authorization'] = `Bearer ${recaptchaToken}`;
-            const url = `https://artio-80085-faucet-api-cf.berachain.com/api/claim?address=${address}`;
+            const url = `https://bartio-faucet.berachain-devnet.com/api/claim?address=${address}`;
             const data = { address };
             const urlConfig = {
                 headers: headers,

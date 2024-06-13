@@ -29,7 +29,6 @@ const headers = {
     'x-lang': 'english',
 };
 
-
 function getKeyFromUser() {
     let key;
     if (process.env.SCRIPT_PASSWORD) {
@@ -53,7 +52,7 @@ function decrypt(text, secretKey) {
 }
 
 async function login(wallet) {
-    const url = 'https://points-api.lavanet.xyz/accounts/metamask/login/';
+    const url = 'https://points-api.lavanet.xyz/accounts/metamask4/login/';
     const address = wallet.address.toLowerCase();
     const data = {
         account: address,
@@ -68,42 +67,42 @@ async function login(wallet) {
     };
 
     const response = await axios.post(url, data, urlConfig);
-    const loginCookie = response.headers['set-cookie'];
-    let cookieString = loginCookie.map(cookie => cookie.replace('Secure,', '')).join('; ');
-    headers['cookie'] = cookieString;
     return response.data.data;
 }
-async function stringToHex (str) {
+
+async function stringToHex(str) {
     let hexString = '';
     for (let i = 0; i < str.length; i++) {
-      const hexVal = str.charCodeAt(i).toString(16); // 将字符转换为ASCII码，再转换为十六进制
-      hexString += hexVal;
+        const hexVal = str.charCodeAt(i).toString(16);
+        hexString += hexVal;
     }
-
     return `0x${hexString}`;
 }
 
-async function signLoginData(hexString, wallet) {
-    const url = 'https://points-api.lavanet.xyz/accounts/metamask/login/';
+async function signLoginData(baseData, hexString, wallet) {
+    const url = 'https://points-api.lavanet.xyz/accounts/metamask4/login/';
     const signature = await web3.eth.accounts.sign(hexString, wallet.privateKey);
     const address = wallet.address.toLowerCase();
+    console.log('base', baseData);
     const data = {
         account: address,
+        base_login_token: baseData,
         login_token: signature.signature,
         invite_code: inviteCode,
         process: 'verify',
     };
-    
+
     const urlConfig = {
         headers: headers,
         httpsAgent: agent,
     };
     const response = await axios.post(url, data, urlConfig);
     const cookies = response.headers['set-cookie'];
-    let cookieString = cookies.map(cookie => cookie.replace('Secure,', '')).join('; ');
-    headers['cookie'] = cookieString;
+    if (cookies && cookies.length > 0) {
+        let cookieString = cookies.map(cookie => cookie.split(';')[0]).join('; ');
+        headers['cookie'] = cookieString;
+    }
     return response.data;
-    
 }
 
 async function getRpc(wallet) {
@@ -137,16 +136,15 @@ async function getRpc(wallet) {
             }
         }
         // 等待5秒后重试
-        await sleep(5); 
+        await sleep(5);
     }
 }
-
 
 async function saveToCsv(filePath, data) {
     // 动态确定链名称作为列标题
     const allChains = new Set();
     Object.values(data).forEach(chains => Object.keys(chains).forEach(chain => allChains.add(chain)));
-    const headers = [{id: 'Address', title: 'Address'}, ...Array.from(allChains).map(chain => ({id: chain, title: chain}))]; // 构建列标题，包含Address
+    const headers = [{ id: 'Address', title: 'Address' }, ...Array.from(allChains).map(chain => ({ id: chain, title: chain }))]; // 构建列标题，包含Address
 
     // 构建CSV记录
     const records = Object.entries(data).map(([address, chains]) => {
@@ -167,7 +165,6 @@ async function saveToCsv(filePath, data) {
     console.log('RPC数据已保存到文件');
 }
 
-
 async function main() {
     const secretKey = getKeyFromUser();
     const wallets = [];
@@ -180,34 +177,35 @@ async function main() {
     }
 
     fs.createReadStream(config.walletPath)
-    .pipe(csvParser())
-    .on('data', (row) => {
-        const decryptedPrivateKey = decrypt(row.privateKey, secretKey);
-        wallets.push({ ...row, decryptedPrivateKey });
-    })
-    .on('end', async () => {
-        console.log('所有地址已读取完毕，开始获取 RPC');
-        for (const walletInfo of wallets) {
-            const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey);
-            console.log(`开始为 ${wallet.address} 获取 RPC`);
-            const loginStatus = await login(wallet);
-            const hexString = await stringToHex(loginStatus);
-            const loginData = await signLoginData(hexString, wallet);
-            const rpcUrls = await getRpc(wallet);
+        .pipe(csvParser())
+        .on('data', (row) => {
+            const decryptedPrivateKey = decrypt(row.privateKey, secretKey);
+            wallets.push({ ...row, decryptedPrivateKey });
+        })
+        .on('end', async () => {
+            console.log('所有地址已读取完毕，开始获取 RPC');
+            for (const walletInfo of wallets) {
+                const wallet = new ethers.Wallet(walletInfo.decryptedPrivateKey);
+                console.log(`开始为 ${wallet.address} 获取 RPC`);
+                const loginStatus = await login(wallet);
+                if (!loginStatus) continue;
+                const hexString = await stringToHex(loginStatus);
+                const loginData = await signLoginData(loginStatus, hexString, wallet);
+                const rpcUrls = await getRpc(wallet);
 
-            // 将四个链接保存到数据对象中
-            data[wallet.address] = {
-                ETH: rpcUrls[0],
-                NEAR: rpcUrls[1],
-                STARK: rpcUrls[2],
-                AXELAR: rpcUrls[3]
-            };
+                // 将四个链接保存到数据对象中
+                data[wallet.address] = {
+                    ETH: rpcUrls[0],
+                    NEAR: rpcUrls[1],
+                    STARK: rpcUrls[2],
+                    AXELAR: rpcUrls[3]
+                };
 
-            // 将数据保存到 CSV 文件
-            await saveToCsv(csvPath, data);
-        }
-        console.log('所有地址的 RPC 信息已获取完毕并保存');
-    });
+                // 将数据保存到 CSV 文件
+                await saveToCsv(csvPath, data);
+            }
+            console.log('所有地址的 RPC 信息已获取完毕并保存');
+        });
 }
 
 main();
