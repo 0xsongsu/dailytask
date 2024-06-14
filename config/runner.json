@@ -5,7 +5,7 @@
     "opbnb": "https://1rpc.io/opbnb",
     "sepolia": "https://1rpc.io/sepolia",
     "walletPath": "/Users/admin/Desktop/testwallet/testwallet.csv",
-    "proxy": "",
+    "proxy": "http://账号:密码@服务器ip:端口 --示例填写",
     "yescaptchaKEY": "",
     "capsolverKEY": "",
     "maxGasPrice": 50,
