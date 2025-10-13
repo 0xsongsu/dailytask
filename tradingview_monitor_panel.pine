@@ -1,0 +1,281 @@
+//@version=5
+indicator(title="Multi-Asset Monitoring Panel", shorttitle="Monitor Panel", overlay=true)
+
+// ==============================
+// Inputs - Symbols & Timeframes
+// ==============================
+// Symbols: comma-separated list. Example: "BINANCE:BTCUSDT, BINANCE:ETHUSDT, BINANCE:SOLUSDT"
+symbolsInput = input.string(
+     defval = "BINANCE:BTCUSDT, BINANCE:ETHUSDT, BINANCE:SOLUSDT, BINANCE:XRPUSDT, BINANCE:BNBUSDT",
+     title  = "Symbols (comma-separated)",
+     group  = "Symbols & Timeframes",
+     tooltip= "Comma-separated list of symbols. Use exchange prefix when needed, e.g. BINANCE:BTCUSDT or OANDA:EURUSD"
+)
+
+// Heatmap timeframes: comma-separated list. Example: "5,15,60,240,1D"
+timeframesInput = input.string(
+     defval = "5,15,60,240,1D",
+     title  = "Heatmap timeframes (comma-separated)",
+     group  = "Symbols & Timeframes",
+     tooltip= "Timeframes such as 5,15,60,240,1D,1W. Numbers are minutes."
+)
+
+metricsTf = input.string(
+     defval = "60",
+     title  = "Metrics timeframe (for RSI/MA/ATR)",
+     group  = "Symbols & Timeframes",
+     tooltip= "Single timeframe used to compute RSI/MA/ATR columns"
+)
+
+// ==============================
+// Inputs - Limits & Performance
+// ==============================
+maxSymbols    = input.int(defval=12, title="Max symbols", minval=1, maxval=50, group="Limits & Performance")
+maxTimeframes = input.int(defval=5,  title="Max heatmap timeframes", minval=1, maxval=12, group="Limits & Performance")
+// Target cap of request.security() calls to avoid Pine limits.
+maxSecurityCalls = input.int(defval=95, title="Max security calls (safety cap)", minval=40, maxval=190, group="Limits & Performance",
+     tooltip="Script automatically trims symbols/timeframes to stay under this cap.")
+
+// ==============================
+// Inputs - Heatmap
+// ==============================
+heatMin = input.float(defval=-3.0, title="Heatmap min %", step=0.1, group="Heatmap",
+     tooltip="Percent change at or below this maps fully to red")
+heatMax = input.float(defval= 3.0, title="Heatmap max %", step=0.1, group="Heatmap",
+     tooltip="Percent change at or above this maps fully to green")
+confirmedOnly = input.bool(defval=false, title="Use confirmed higher-timeframe bars", group="Heatmap",
+     tooltip="If enabled, heatmap uses last closed HTF bar (open[1]/close[1]) instead of intrabar values.")
+
+// ==============================
+// Inputs - Metrics
+// ==============================
+showRSI = input.bool(defval=true,  title="Show RSI",        group="Metrics")
+rsiLen  = input.int(defval=14,     title="RSI length",      minval=2, group="Metrics")
+rsiOB   = input.int(defval=70,     title="RSI overbought",  minval=50, maxval=100, group="Metrics")
+rsiOS   = input.int(defval=30,     title="RSI oversold",    minval=0,  maxval=50,  group="Metrics")
+
+showMA  = input.bool(defval=true,  title="Show MA trend",    group="Metrics")
+maType  = input.string(defval="EMA", title="MA type", options=["SMA","EMA","WMA","HMA","RMA"], group="Metrics")
+maLen   = input.int(defval=50,     title="MA length",        minval=1, group="Metrics")
+
+showATR = input.bool(defval=true,  title="Show ATR%",        group="Metrics")
+atrLen  = input.int(defval=14,     title="ATR length",       minval=1, group="Metrics")
+atrHi   = input.float(defval=2.0,  title="ATR% high threshold", minval=0.0, step=0.1, group="Metrics")
+
+// ==============================
+// Inputs - Table / Display
+// ==============================
+posOpt = input.string(
+     defval  = "Top Right",
+     title   = "Table position",
+     options = ["Top Left","Top Right","Bottom Left","Bottom Right"],
+     group   = "Table"
+)
+textSizeOpt = input.string(
+     defval  = "Normal",
+     title   = "Text size",
+     options = ["Tiny","Small","Normal","Large"],
+     group   = "Table"
+)
+showBorders = input.bool(defval=false, title="Show borders", group="Table")
+
+// ==============================
+// Helpers
+// ==============================
+string[] splitAndTrim(string s) =>
+    sNorm = str.replace_all(s, "\n", ",")
+    sNorm := str.replace_all(sNorm, ";", ",")
+    sNorm := str.replace_all(sNorm, " ", "")
+    parts = str.split(sNorm, ",")
+    // Remove empties
+    out = array.new_string()
+    for i = 0 to array.size(parts) - 1
+        item = array.get(parts, i)
+        if not str.ismatch(item, "^\\s*$")
+            array.push(out, str.trim(item))
+    out
+
+string tfLabel(string tf) =>
+    // Produce compact label: 5 -> 5m, 60 -> 1H, 240 -> 4H, 1D -> 1D
+    isNum = str.ismatch(tf, "^\\d+$")
+    if isNum
+        mins = str.tonumber(tf)
+        mins >= 60 ? (mins % 60 == 0 ? str.tostring(math.round(mins / 60.0)) + "H" : str.tostring(mins) + "m") : str.tostring(mins) + "m"
+    else
+        // Already a TF like 1D/1W/1M
+        tf
+
+maByType(simple float src, simple int len) =>
+    switch maType
+        "SMA" => ta.sma(src, len)
+        "EMA" => ta.ema(src, len)
+        "WMA" => ta.wma(src, len)
+        "HMA" => ta.hma(src, len)
+        => ta.rma(src, len)
+
+position tablePosFromOpt(string opt) =>
+    opt == "Top Left" ? position.top_left :
+      opt == "Top Right" ? position.top_right :
+      opt == "Bottom Left" ? position.bottom_left : position.bottom_right
+
+simple int clampInt(simple int v, simple int lo, simple int hi) => math.max(lo, math.min(hi, v))
+
+// Heatmap percent change, computed inside the HTF context in a single security() call.
+float pctChangeFor(string sym, string tf, bool useConfirmed) =>
+    useConfirmed
+        ? request.security(sym, tf, 100.0 * (nz(close[1]) - nz(open[1])) / nz(open[1]))
+        : request.security(sym, tf, 100.0 * (close - open) / nz(open))
+
+// MA diff percent vs MA, computed in a single security() call.
+float maDiffPctFor(string sym, string tf) =>
+    request.security(sym, tf, 100.0 * (close - maByType(close, maLen)) / nz(maByType(close, maLen)))
+
+// ATR percent, computed in a single security() call.
+float atrPctFor(string sym, string tf) =>
+    request.security(sym, tf, 100.0 * ta.atr(atrLen) / nz(close))
+
+// RSI value at TF, computed in a single security() call.
+float rsiFor(string sym, string tf) =>
+    request.security(sym, tf, ta.rsi(close, rsiLen))
+
+// Color utilities
+color heatColor(float v) => color.from_gradient(v, heatMin, heatMax, color.new(color.red, 0), color.new(color.lime, 0))
+color posNegTextColor(float v) => v >= 0 ? color.black : color.white
+
+color rsiColor(float r) =>
+    r >= rsiOB ? color.new(color.red, 0) : r <= rsiOS ? color.new(color.lime, 0) : color.from_gradient(r, 0.0, 100.0, color.new(color.red, 0), color.new(color.lime, 0))
+
+color maColor(float diffPct) => diffPct >= 0 ? color.new(color.lime, 0) : color.new(color.red, 0)
+
+color atrColor(float a) => color.from_gradient(a, 0.0, atrHi, color.new(color.teal, 80), color.new(color.orange, 0))
+
+size textSizeFromOpt(string opt) =>
+    opt == "Tiny" ? size.tiny : opt == "Small" ? size.small : opt == "Large" ? size.large : size.normal
+
+// ==============================
+// Parse inputs
+// ==============================
+var string[] symsRaw = array.new_string()
+var string[] tfsRaw  = array.new_string()
+if barstate.isfirst
+    symsRaw := splitAndTrim(symbolsInput)
+    tfsRaw  := splitAndTrim(timeframesInput)
+
+// Allow updating on settings change
+symsRaw := splitAndTrim(symbolsInput)
+tfsRaw  := splitAndTrim(timeframesInput)
+
+int numSymbols = clampInt(array.size(symsRaw), 1, maxSymbols)
+int numTFs     = clampInt(array.size(tfsRaw),  1, maxTimeframes)
+
+// ==============================
+// Call budget trimming
+// One heatmap call per (symbol x TF)
+// Plus metrics per symbol: RSI + MA + ATR if enabled
+// ==============================
+metricsPerSymbol = (showRSI ? 1 : 0) + (showMA ? 1 : 0) + (showATR ? 1 : 0)
+estimatedCalls   = numSymbols * numTFs + numSymbols * metricsPerSymbol
+
+// Trim symbols/timeframes if over cap
+symTrim = numSymbols
+tfTrim  = numTFs
+if estimatedCalls > maxSecurityCalls
+    // Try reducing symbols first
+    maxBySymbols = math.floor((maxSecurityCalls) / math.max(1, numTFs + metricsPerSymbol))
+    symTrim := clampInt(maxBySymbols, 1, numSymbols)
+    tfTrim  := numTFs
+    // Recompute
+    est2 = symTrim * tfTrim + symTrim * metricsPerSymbol
+    if est2 > maxSecurityCalls
+        // Reduce TFs if still over
+        maxByTFs = math.floor((maxSecurityCalls - symTrim * metricsPerSymbol) / math.max(1, symTrim))
+        tfTrim := clampInt(maxByTFs, 1, numTFs)
+
+numSymbolsEff = symTrim
+numTFsEff     = tfTrim
+
+// ==============================
+// Build / ensure table
+// ==============================
+colsHeatmap = numTFsEff
+colsMetrics = (showRSI ? 1 : 0) + (showMA ? 1 : 0) + (showATR ? 1 : 0)
+colsTotal   = 1 + colsHeatmap + colsMetrics // 1 for Symbol column
+rowsTotal   = 1 + numSymbolsEff             // 1 for header
+
+var table panel = na
+shouldRebuild = na(panel) ? true : (table.get_cols(panel) != colsTotal or table.get_rows(panel) != rowsTotal)
+if shouldRebuild
+    panel := table.new(
+        position = tablePosFromOpt(posOpt),
+        columns  = colsTotal,
+        rows     = rowsTotal,
+        border_width = showBorders ? 1 : 0,
+        border_color = showBorders ? color.new(color.gray, 0) : color.new(color.gray, 100),
+        frame_color  = color.new(color.gray, 80),
+        bgcolor      = color.new(color.black, 0)
+    )
+else
+    // Clear previous contents
+    table.clear(panel)
+
+// ==============================
+// Render header
+// ==============================
+var string[] headerNames = array.new_string()
+array.clear(headerNames)
+array.push(headerNames, "SYMBOL")
+for j = 0 to numTFsEff - 1
+    tfj = array.get(tfsRaw, j)
+    array.push(headerNames, tfLabel(tfj))
+if showRSI
+    array.push(headerNames, "RSI (" + tfLabel(metricsTf) + ")")
+if showMA
+    array.push(headerNames, "MA Δ% (" + tfLabel(metricsTf) + ")")
+if showATR
+    array.push(headerNames, "ATR% (" + tfLabel(metricsTf) + ")")
+
+for c = 0 to array.size(headerNames) - 1
+    table.cell(panel, c, 0, text=array.get(headerNames, c), text_color=color.new(color.white, 0), text_size=textSizeFromOpt(textSizeOpt), text_halign=text.align_center, text_valign=text.align_center, bgcolor=color.new(color.gray, 85))
+
+// ==============================
+// Render rows
+// ==============================
+for r = 0 to numSymbolsEff - 1
+    symFull = array.get(symsRaw, r)
+    // Short symbol label (strip exchange prefix if present)
+    symParts = str.split(symFull, ":")
+    symShort = array.size(symParts) >= 2 ? array.get(symParts, array.size(symParts)-1) : symFull
+
+    // First column: symbol
+    table.cell(panel, 0, r+1, text=symShort, text_color=color.new(color.white, 0), text_size=textSizeFromOpt(textSizeOpt), text_halign=text.align_left, text_valign=text.align_center, bgcolor=color.new(color.black, 0))
+
+    // Heatmap columns
+    for c = 0 to numTFsEff - 1
+        tfc = array.get(tfsRaw, c)
+        pc  = pctChangeFor(symFull, tfc, confirmedOnly)
+        bg  = heatColor(pc)
+        fg  = posNegTextColor(pc)
+        pctTxt = str.format("{0,number,##0.0}%", pc)
+        table.cell(panel, 1 + c, r+1, text=pctTxt, text_color=fg, text_size=textSizeFromOpt(textSizeOpt), text_halign=text.align_center, text_valign=text.align_center, bgcolor=bg)
+
+    // Metrics columns (on metricsTf)
+    colIdx = 1 + colsHeatmap
+    if showRSI
+        rsiVal = rsiFor(symFull, metricsTf)
+        rsiTxt = str.format("{0,number,##0.0}", rsiVal)
+        table.cell(panel, colIdx, r+1, text=rsiTxt, text_color=color.new(color.white, 0), text_size=textSizeFromOpt(textSizeOpt), text_halign=text.align_center, text_valign=text.align_center, bgcolor=rsiColor(rsiVal))
+        colIdx += 1
+
+    if showMA
+        diffPct = maDiffPctFor(symFull, metricsTf)
+        arrow   = diffPct >= 0 ? "▲" : "▼"
+        maTxt   = str.format("{0} {1,number,##0.0}%", arrow, math.abs(diffPct))
+        table.cell(panel, colIdx, r+1, text=maTxt, text_color=color.new(color.white, 0), text_size=textSizeFromOpt(textSizeOpt), text_halign=text.align_center, text_valign=text.align_center, bgcolor=maColor(diffPct))
+        colIdx += 1
+
+    if showATR
+        atrPct = atrPctFor(symFull, metricsTf)
+        atrTxt = str.format("{0,number,##0.0}%", atrPct)
+        table.cell(panel, colIdx, r+1, text=atrTxt, text_color=color.new(color.white, 0), text_size=textSizeFromOpt(textSizeOpt), text_halign=text.align_center, text_valign=text.align_center, bgcolor=atrColor(atrPct))
+        colIdx += 1
+
